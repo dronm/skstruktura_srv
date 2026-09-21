@@ -54,6 +54,18 @@ fields:
       onUpdate: CASCADE
     comment: Material reference
 
+  - name: construction_site_id
+    type: int
+    required: false
+    nullable: true
+    references:
+      schema: public
+      table: construction_sites
+      column: id
+      onDelete: RESTRICT
+      onUpdate: CASCADE
+    comment: Construction site where the status change was recorded
+
   - name: status
     type: enum
     enum: material_status_type
@@ -100,6 +112,16 @@ list:
       type: bool
       required: true
       default: "true"
+
+    - name: construction_site_id
+      type: int
+      required: false
+      nullable: true
+
+    - name: construction_site
+      type: jsonb
+      goType: "*Ref"
+      nullable: true
 
 crud:
   create: true
@@ -156,6 +178,16 @@ frontend:
       - field: created_at
         label: Дата
         editable: true
+
+      - field: construction_site_id
+        label: Объект строительства
+        width: 18rem
+        editable: true
+        reference:
+          name: constructionSiteReference
+          import: "@/references/inventoryReferences"
+          field: construction_site
+        sortField: "construction_site->>'descr'"
 
       - field: material_id
         label: Материал

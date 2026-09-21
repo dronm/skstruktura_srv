@@ -18,6 +18,8 @@ type MaterialStatus struct {
 	CreatedAt time.Time `json:"created_at" required:"true"`
 	// Material reference
 	MaterialID int `json:"material_id" required:"true"`
+	// Construction site where the status change was recorded
+	ConstructionSiteID *int `json:"construction_site_id"`
 	// Material status
 	Status   MaterialStatusType `json:"status" required:"true" enum:"material_status_type"`
 	IsActive bool               `json:"is_active" required:"true"`
@@ -35,12 +37,14 @@ const materialStatusListRelation = "public.material_statuses_list"
 
 // MaterialStatusList is the collection projection for material statuses.
 type MaterialStatusList struct {
-	ID         int                `json:"id" primaryKey:"true"`
-	CreatedAt  time.Time          `json:"created_at" required:"true"`
-	MaterialID int                `json:"material_id" required:"true"`
-	Material   *Ref               `json:"material" required:"true"`
-	Status     MaterialStatusType `json:"status" required:"true" enum:"material_status_type"`
-	IsActive   bool               `json:"is_active" required:"true"`
+	ID                 int                `json:"id" primaryKey:"true"`
+	CreatedAt          time.Time          `json:"created_at" required:"true"`
+	MaterialID         int                `json:"material_id" required:"true"`
+	Material           *Ref               `json:"material" required:"true"`
+	Status             MaterialStatusType `json:"status" required:"true" enum:"material_status_type"`
+	IsActive           bool               `json:"is_active" required:"true"`
+	ConstructionSiteID *int               `json:"construction_site_id"`
+	ConstructionSite   *Ref               `json:"construction_site"`
 }
 
 func (m MaterialStatusList) Relation() string {

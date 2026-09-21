@@ -11,7 +11,6 @@ import (
 	"github.com/dronm/modelbind"
 	"github.com/dronm/modelbind/types"
 	"github.com/dronm/session"
-	"github.com/dronm/skstruktura/internal/apperrors"
 	"github.com/dronm/skstruktura/internal/models"
 	"github.com/dronm/webapp"
 	wmodels "github.com/dronm/webapp/models"
@@ -50,6 +49,9 @@ func (s *MaterialStatusService) Create(
 	if err := s.requireDB(); err != nil {
 		return nil, err
 	}
+	if err := validateGenericMaterialStatusCreateInput(input); err != nil {
+		return nil, err
+	}
 
 	result, err := webapp.InsertModelInput(ctx, s.DB, input, nil)
 	if err != nil {
@@ -74,6 +76,9 @@ func (s *MaterialStatusService) Update(
 	}
 	if input.Keys.ID <= 0 {
 		return wmodels.RowsAffectedResponse{}, webapp.BadRequest("material status id is required", nil)
+	}
+	if err := validateGenericMaterialStatusUpdateInput(input.Input); err != nil {
+		return wmodels.RowsAffectedResponse{}, err
 	}
 
 	rowsAffected, err := webapp.UpdateModelInput(ctx, s.DB, input.Keys, input.Input, nil)
@@ -194,11 +199,7 @@ func (s *MaterialStatusService) List(
 }
 
 func (s *MaterialStatusService) requireSession() error {
-	if s.Session == nil {
-		return apperrors.SessionRequired()
-	}
-
-	return nil
+	return requireMaterialStatusAdminSession(s.Session, "materialStatus")
 }
 
 func (s *MaterialStatusService) requireDB() error {
