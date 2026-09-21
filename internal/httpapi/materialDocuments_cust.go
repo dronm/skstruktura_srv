@@ -84,6 +84,36 @@ func materialDocumentRoutes(api *webapp.Group) {
 		webapp.WithService("MaterialTransfer", "Update"),
 		webapp.WithBinder(materialTransferDocumentUpdateBinder()),
 	)
+
+	api.POST(
+		"/material-requests",
+		webapp.WithName("materialRequest.create"),
+		webapp.WithPermission("materialRequest.create"),
+		webapp.WithService("MaterialRequest", "Create"),
+		webapp.WithBinder(documentJSONBinder[models.MaterialRequestDocument]()),
+		webapp.WithSuccessCode(http.StatusCreated),
+	)
+	api.GET(
+		"/material-requests/{id}",
+		webapp.WithName("materialRequest.detail"),
+		webapp.WithPermission("materialRequest.detail"),
+		webapp.WithService("MaterialRequest", "DocumentDetail"),
+		webapp.WithBinder(webapp.PathValueBinder[int]("id")),
+	)
+	api.PUT(
+		"/material-requests/{id}",
+		webapp.WithName("materialRequest.update"),
+		webapp.WithPermission("materialRequest.update"),
+		webapp.WithService("MaterialRequest", "Update"),
+		webapp.WithBinder(materialRequestDocumentUpdateBinder()),
+	)
+	api.POST(
+		"/material-requests/{id}/submit",
+		webapp.WithName("materialRequest.submit"),
+		webapp.WithPermission("materialRequest.submit"),
+		webapp.WithService("MaterialRequest", "Submit"),
+		webapp.WithBinder(materialRequestSubmitBinder()),
+	)
 }
 
 func removeReplacedMaterialDocumentRoutes(routes []webapp.Route) []webapp.Route {
@@ -97,6 +127,9 @@ func removeReplacedMaterialDocumentRoutes(routes []webapp.Route) []webapp.Route 
 		"materialTransfer.create":    {},
 		"materialTransfer.detail":    {},
 		"materialTransfer.update":    {},
+		"materialRequest.create":     {},
+		"materialRequest.detail":     {},
+		"materialRequest.update":     {},
 	}
 
 	filtered := routes[:0]
@@ -107,9 +140,11 @@ func removeReplacedMaterialDocumentRoutes(routes []webapp.Route) []webapp.Route 
 		if strings.HasPrefix(route.Name, "materialReceiptItem.") ||
 			strings.HasPrefix(route.Name, "materialConsumptionItem.") ||
 			strings.HasPrefix(route.Name, "materialTransferItem.") ||
+			strings.HasPrefix(route.Name, "materialRequestItem.") ||
 			strings.HasPrefix(route.Pattern, "/api/material-receipt-items") ||
 			strings.HasPrefix(route.Pattern, "/api/material-consumption-items") ||
-			strings.HasPrefix(route.Pattern, "/api/material-transfer-items") {
+			strings.HasPrefix(route.Pattern, "/api/material-transfer-items") ||
+			strings.HasPrefix(route.Pattern, "/api/material-request-items") {
 			continue
 		}
 		filtered = append(filtered, route)
@@ -163,6 +198,37 @@ func materialTransferDocumentUpdateBinder() webapp.Binder {
 			return nil, err
 		}
 		return models.UpdateMaterialTransferDocumentRequest{ID: id, Document: document}, nil
+	}
+}
+
+func materialRequestDocumentUpdateBinder() webapp.Binder {
+	return func(r *http.Request) (any, error) {
+		id, err := positiveDocumentPathID(r)
+		if err != nil {
+			return nil, err
+		}
+		document, err := decodeDocumentJSON[models.MaterialRequestDocument](r)
+		if err != nil {
+			return nil, err
+		}
+		return models.UpdateMaterialRequestDocumentRequest{ID: id, Document: document}, nil
+	}
+}
+
+func materialRequestSubmitBinder() webapp.Binder {
+	return func(r *http.Request) (any, error) {
+		id, err := positiveDocumentPathID(r)
+		if err != nil {
+			return nil, err
+		}
+		request, err := decodeDocumentJSON[models.MaterialRequestVersionRequest](r)
+		if err != nil {
+			return nil, err
+		}
+		if request.Version <= 0 {
+			return nil, webapp.BadRequest("material request version should be positive", nil)
+		}
+		return models.SubmitMaterialRequestInput{ID: id, Request: request}, nil
 	}
 }
 

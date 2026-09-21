@@ -1,0 +1,256 @@
+name: MaterialRequestItem
+comment: MaterialRequestItem describes a line of a material request document.
+humanName: material request item
+humanNamePlural: material request items
+
+table:
+  schema: public
+  name: material_request_items
+  comment: Material request document lines.
+  checks:
+    - line_num > 0
+    - quant > 0
+
+route: /material-request-items
+permissionPrefix: materialRequestItem
+serviceName: MaterialRequestItem
+sessionRequired: true
+crudNotifications: true
+
+keys:
+  - name: id
+    pathName: id
+    type: int
+
+fields:
+  - name: id
+    type: int
+    primaryKey: true
+    autoIncrement: true
+    serverGenerated: true
+
+  - name: line_num
+    type: int
+    required: true
+    comment: Line number within the document.
+
+  - name: material_request_id
+    type: int
+    required: true
+    references:
+      schema: public
+      table: material_requests
+      column: id
+      onDelete: CASCADE
+      onUpdate: CASCADE
+    comment: Parent material request document.
+
+  - name: material_id
+    type: int
+    required: true
+    references:
+      schema: public
+      table: materials
+      column: id
+      onDelete: RESTRICT
+      onUpdate: CASCADE
+    comment: Requested material.
+
+  - name: measure_unit_id
+    type: int
+    required: true
+    references:
+      schema: public
+      table: measure_units
+      column: id
+      onDelete: RESTRICT
+      onUpdate: CASCADE
+    comment: Measurement unit copied from the selected material.
+
+  - name: quant
+    type: numeric
+    sqlType: numeric(19, 4)
+    required: true
+    comment: Requested quantity.
+
+  - name: supplier_id
+    type: int
+    required: false
+    nullable: true
+    references:
+      schema: public
+      table: suppliers
+      column: id
+      onDelete: RESTRICT
+      onUpdate: CASCADE
+    comment: Optional supplier assigned by a supply user.
+
+  - name: required_date
+    type: date
+    required: false
+    nullable: true
+    comment: Optional date by which the material is required.
+
+  - name: order_importance_id
+    type: int
+    required: true
+    references:
+      schema: public
+      table: order_importances
+      column: id
+      onDelete: RESTRICT
+      onUpdate: CASCADE
+    comment: Request importance level.
+
+  - name: status_id
+    type: int
+    required: true
+    dbRequired: true
+    default: "1"
+    references:
+      schema: public
+      table: material_request_statuses
+      column: id
+      onDelete: RESTRICT
+      onUpdate: CASCADE
+    comment: Request item workflow status; new lines start in draft status.
+
+list:
+  model: MaterialRequestItemList
+  table:
+    schema: public
+    name: material_request_items_list
+  fields:
+    - name: id
+      type: int
+      primaryKey: true
+
+    - name: line_num
+      type: int
+      required: true
+
+    - name: material_request_id
+      type: int
+      required: true
+
+    - name: material_id
+      type: int
+      required: true
+
+    - name: measure_unit_id
+      type: int
+      required: true
+
+    - name: quant
+      type: numeric
+      required: true
+
+    - name: supplier_id
+      type: int
+      required: false
+      nullable: true
+
+    - name: required_date
+      type: date
+      required: false
+      nullable: true
+
+    - name: order_importance_id
+      type: int
+      required: true
+
+    - name: status_id
+      type: int
+      required: true
+
+    - name: material
+      type: jsonb
+      goType: "*Ref"
+      required: true
+
+    - name: measure_unit
+      type: jsonb
+      goType: "*Ref"
+      required: true
+
+    - name: supplier
+      type: jsonb
+      goType: "*Ref"
+      required: false
+      nullable: true
+
+    - name: order_importance
+      type: jsonb
+      goType: "*Ref"
+      required: true
+
+    - name: status
+      type: jsonb
+      goType: "*Ref"
+      required: true
+
+crud:
+  create: true
+  list: true
+  detail: true
+  update: true
+  delete: true
+
+service:
+  manualMethods:
+    - detail
+    - create
+    - update
+    - delete
+
+permissions:
+  enabled: true
+  grantRoles:
+    - admin
+  descriptions:
+    create: Создание строки заявки на материалы
+    list: Просмотр строк заявки на материалы
+    detail: Просмотр строки заявки на материалы
+    update: Изменение строки заявки на материалы
+    delete: Удаление строки заявки на материалы
+
+applicationRoute:
+  enabled: false
+
+menu:
+  enabled: false
+
+frontend:
+  scaffold: false
+
+migration:
+  enabled: true
+  indexes:
+    - name: material_request_items_request_line_idx
+      columns:
+        - material_request_id
+        - line_num
+      unique: true
+    - name: material_request_items_material_id_idx
+      columns:
+        - material_id
+      unique: false
+    - name: material_request_items_supplier_id_idx
+      columns:
+        - supplier_id
+      unique: false
+    - name: material_request_items_importance_id_idx
+      columns:
+        - order_importance_id
+      unique: false
+    - name: material_request_items_status_id_idx
+      columns:
+        - status_id
+      unique: false
+    - name: material_request_items_required_date_idx
+      columns:
+        - required_date
+      unique: false
+
+test:
+  enabled: false

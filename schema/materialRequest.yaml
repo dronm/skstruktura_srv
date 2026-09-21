@@ -1,0 +1,240 @@
+name: MaterialRequest
+comment: MaterialRequest describes a request for materials at a construction site.
+humanName: material request
+humanNamePlural: material requests
+
+table:
+  schema: public
+  name: material_requests
+  comment: Material request document headers.
+  checks:
+    - version > 0
+
+route: /material-requests
+permissionPrefix: materialRequest
+serviceName: MaterialRequest
+sessionRequired: true
+crudNotifications: true
+
+keys:
+  - name: id
+    pathName: id
+    type: int
+
+fields:
+  - name: id
+    type: int
+    primaryKey: true
+    autoIncrement: true
+    serverGenerated: true
+
+  - name: date
+    type: timestamptz
+    required: true
+    dbRequired: true
+    default: "now()"
+    comment: Document date and time.
+
+  - name: construction_site_id
+    type: int
+    required: true
+    references:
+      schema: public
+      table: construction_sites
+      column: id
+      onDelete: RESTRICT
+      onUpdate: CASCADE
+    comment: Construction site requesting the materials.
+
+  - name: construction_manager_id
+    type: int
+    required: true
+    references:
+      schema: public
+      table: users
+      column: id
+      onDelete: RESTRICT
+      onUpdate: CASCADE
+    comment: Manager responsible for the material request.
+
+  - name: comment
+    type: text
+    required: false
+    nullable: true
+    comment: Optional document comment.
+
+  - name: version
+    type: int
+    sqlType: bigint
+    required: true
+    dbRequired: true
+    serverGenerated: true
+    default: "1"
+    comment: Optimistic concurrency version.
+
+list:
+  model: MaterialRequestList
+  table:
+    schema: public
+    name: material_requests_list
+  fields:
+    - name: id
+      type: int
+      primaryKey: true
+
+    - name: date
+      type: timestamptz
+      required: true
+
+    - name: construction_site_id
+      type: int
+      required: true
+
+    - name: construction_manager_id
+      type: int
+      required: true
+
+    - name: comment
+      type: text
+      required: false
+      nullable: true
+
+    - name: version
+      type: int
+      required: true
+
+    - name: construction_site
+      type: jsonb
+      goType: "*Ref"
+      required: true
+
+    - name: construction_manager
+      type: jsonb
+      goType: "*Ref"
+      required: true
+
+crud:
+  create: true
+  list: true
+  detail: true
+  update: true
+  delete: true
+
+service:
+  manualMethods:
+    - detail
+    - create
+    - update
+    - delete
+
+permissions:
+  enabled: true
+  grantRoles:
+    - admin
+  descriptions:
+    create: Создание заявки на материалы
+    list: Просмотр списка заявок на материалы
+    detail: Просмотр заявки на материалы
+    update: Изменение заявки на материалы
+    delete: Удаление заявки на материалы
+
+applicationRoute:
+  enabled: true
+  name: materialRequests
+  path: /material-requests
+  description: Заявки на материалы
+  section: Документы
+  icon: pi pi-clipboard
+  menuAvailable: true
+
+menu:
+  enabled: true
+  role: admin
+  caption: Заявки на материалы
+  sortOrder: 40
+  parent:
+    caption: Материалы
+    sortOrder: 40
+    create: true
+
+frontend:
+  scaffold: true
+  title: Заявки на материалы
+
+  form:
+    columns: 2
+    createTitle: Новая заявка на материалы
+    editTitle: Заявка на материалы
+    copyTitle: Копия заявки на материалы
+    fields:
+      - field: date
+        label: Дата
+        component: DatePicker
+        componentImport: primevue/datepicker
+        autofocus: true
+
+      - field: construction_site_id
+        label: Объект строительства
+        component: number
+
+      - field: construction_manager_id
+        label: Ответственный прораб
+        component: number
+
+      - field: comment
+        label: Комментарий
+        component: textarea
+        columnSpan: 2
+
+  list:
+    pageSize: 30
+    columns:
+      - field: id
+        label: ID
+        width: 8rem
+
+      - field: date
+        label: Дата
+        width: 12rem
+
+      - field: construction_site_id
+        label: Объект строительства
+        width: 16rem
+        reference:
+          name: constructionSiteReference
+          import: "@/references/inventoryReferences"
+          field: construction_site
+        sortField: "construction_site->>'descr'"
+
+      - field: construction_manager_id
+        label: Ответственный прораб
+        width: 16rem
+        reference:
+          name: constructionManagerReference
+          import: "@/references/inventoryReferences"
+          field: construction_manager
+        sortField: "construction_manager->>'descr'"
+
+  routes:
+    listName: materialRequests
+    createName: materialRequestCreate
+    editName: materialRequestEdit
+
+migration:
+  enabled: true
+  indexes:
+    - name: material_requests_construction_site_id_idx
+      columns:
+        - construction_site_id
+      unique: false
+    - name: material_requests_construction_manager_id_idx
+      columns:
+        - construction_manager_id
+      unique: false
+    - name: material_requests_date_idx
+      columns:
+        - date
+      unique: false
+
+test:
+  enabled: false

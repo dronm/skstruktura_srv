@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -158,6 +159,67 @@ func validateMaterialTransferDocument(document *models.MaterialTransferDocument,
 		}
 		if item.Quant <= 0 {
 			return invalidMaterialDocumentItem(index, "quant should be greater than zero")
+		}
+	}
+
+	return nil
+}
+
+func validateMaterialRequestDocument(document *models.MaterialRequestDocument, create bool, pathID int) error {
+	if document == nil {
+		return webapp.BadRequest("material request document is required", nil)
+	}
+	if err := validateMaterialDocumentIdentity(document.ID, document.Version, create, pathID); err != nil {
+		return err
+	}
+	if document.Date.IsZero() {
+		return webapp.BadRequest("material request date is required", nil)
+	}
+	if document.ConstructionSiteID <= 0 {
+		return webapp.BadRequest("material request construction_site_id should be positive", nil)
+	}
+	if document.ConstructionManagerID <= 0 {
+		return webapp.BadRequest("material request construction_manager_id should be positive", nil)
+	}
+	if err := validateMaterialDocumentItemCount(len(document.Items)); err != nil {
+		return err
+	}
+
+	seenIDs := make(map[int]struct{}, len(document.Items))
+	for index, item := range document.Items {
+		if item == nil {
+			return invalidMaterialDocumentItem(index, "item is required")
+		}
+		if err := validateSubmittedItemID(item.ID, create, index, seenIDs); err != nil {
+			return err
+		}
+		item.LineNum = index + 1
+		if item.MaterialID <= 0 {
+			return invalidMaterialDocumentItem(index, "material_id should be positive")
+		}
+		if item.MeasureUnitID <= 0 {
+			return invalidMaterialDocumentItem(index, "measure_unit_id should be positive")
+		}
+		if item.Quant <= 0 {
+			return invalidMaterialDocumentItem(index, "quant should be greater than zero")
+		}
+		if item.SupplierID != nil && *item.SupplierID <= 0 {
+			return invalidMaterialDocumentItem(index, "supplier_id should be positive when provided")
+		}
+		if item.RequiredDate != nil {
+			if _, err := time.Parse(time.DateOnly, item.RequiredDate.String()); err != nil {
+				return invalidMaterialDocumentItem(index, "required_date should use YYYY-MM-DD format")
+			}
+		}
+		if item.OrderImportanceID <= 0 {
+			return invalidMaterialDocumentItem(index, "order_importance_id should be positive")
+		}
+		if item.ID == 0 {
+			if item.StatusID < 0 {
+				return invalidMaterialDocumentItem(index, "status_id should not be negative")
+			}
+		} else if item.StatusID <= 0 {
+			return invalidMaterialDocumentItem(index, "status_id should be positive")
 		}
 	}
 
@@ -533,6 +595,132 @@ func fetchMaterialTransferDocument(
 	return document, nil
 }
 
+func fetchMaterialRequestDocument(
+	ctx context.Context,
+	db ds.Querier,
+	id int,
+) (*models.MaterialRequestDocument, error) {
+	rows, err := db.Query(ctx, `
+		SELECT
+			request.id,
+			request.version,
+			request.date,
+			request.construction_site_id,
+			request.construction_manager_id,
+			request.comment,
+			item.id,
+			item.line_num,
+			item.material_id,
+			item.measure_unit_id,
+			item.quant::double precision,
+			item.supplier_id,
+			to_char(item.required_date, 'YYYY-MM-DD'),
+			item.order_importance_id,
+			item.status_id,
+			request.construction_site,
+			request.construction_manager,
+			item.material,
+			item.measure_unit,
+			item.supplier,
+			item.order_importance,
+			item.status
+		FROM public.material_requests_list AS request
+		LEFT JOIN public.material_request_items_list AS item
+			ON item.material_request_id = request.id
+		WHERE request.id = $1
+		ORDER BY item.line_num, item.id
+	`, id)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var document *models.MaterialRequestDocument
+	for rows.Next() {
+		var documentID, constructionSiteID, constructionManagerID int
+		var version int64
+		var date time.Time
+		var comment *string
+		var itemID, lineNum, materialID, measureUnitID, orderImportanceID, statusID *int
+		var supplierID *int
+		var requiredDate *string
+		var quant *float64
+		var constructionSiteRef, constructionManagerRef *models.Ref
+		var itemMaterial, itemMeasureUnit, itemSupplier, itemOrderImportance, itemStatus *models.Ref
+		if err := rows.Scan(
+			&documentID,
+			&version,
+			&date,
+			&constructionSiteID,
+			&constructionManagerID,
+			&comment,
+			&itemID,
+			&lineNum,
+			&materialID,
+			&measureUnitID,
+			&quant,
+			&supplierID,
+			&requiredDate,
+			&orderImportanceID,
+			&statusID,
+			&constructionSiteRef,
+			&constructionManagerRef,
+			&itemMaterial,
+			&itemMeasureUnit,
+			&itemSupplier,
+			&itemOrderImportance,
+			&itemStatus,
+		); err != nil {
+			return nil, err
+		}
+		if document == nil {
+			document = &models.MaterialRequestDocument{
+				ID:                    documentID,
+				Version:               version,
+				Date:                  date,
+				ConstructionSiteID:    constructionSiteID,
+				ConstructionManagerID: constructionManagerID,
+				Comment:               comment,
+				Items:                 make([]*models.MaterialRequestDocumentItem, 0),
+				ConstructionSite:      constructionSiteRef,
+				ConstructionManager:   constructionManagerRef,
+			}
+		}
+		if itemID == nil {
+			continue
+		}
+
+		var itemRequiredDate *models.DateOnly
+		if requiredDate != nil {
+			value := models.DateOnly(*requiredDate)
+			itemRequiredDate = &value
+		}
+		document.Items = append(document.Items, &models.MaterialRequestDocumentItem{
+			ID:                *itemID,
+			LineNum:           *lineNum,
+			MaterialID:        *materialID,
+			MeasureUnitID:     *measureUnitID,
+			Quant:             *quant,
+			SupplierID:        supplierID,
+			RequiredDate:      itemRequiredDate,
+			OrderImportanceID: *orderImportanceID,
+			StatusID:          *statusID,
+			Material:          itemMaterial,
+			MeasureUnit:       itemMeasureUnit,
+			Supplier:          itemSupplier,
+			OrderImportance:   itemOrderImportance,
+			Status:            itemStatus,
+		})
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	if document == nil {
+		return nil, ds.ErrNoRows
+	}
+	return document, nil
+}
+
 func syncMaterialReceiptItems(
 	ctx context.Context,
 	tx ds.Querier,
@@ -768,6 +956,321 @@ func syncMaterialTransferItems(
 	}
 
 	return deleteMaterialDocumentItems(ctx, tx, "public.material_transfer_items", "material_transfer_id", documentID, existing)
+}
+
+func syncMaterialRequestItems(
+	ctx context.Context,
+	tx ds.Querier,
+	documentID int,
+	items []*models.MaterialRequestDocumentItem,
+) error {
+	existing, err := materialDocumentItemIDs(ctx, tx, `
+		SELECT id
+		FROM public.material_request_items
+		WHERE material_request_id = $1
+		FOR UPDATE
+	`, documentID)
+	if err != nil {
+		return err
+	}
+	if err := stageMaterialDocumentItemLines(ctx, tx, `
+		WITH line_offset AS (
+			SELECT COALESCE(MAX(line_num), 0) + $2 AS value
+			FROM public.material_request_items
+			WHERE material_request_id = $1
+		)
+		UPDATE public.material_request_items AS item
+		SET line_num = item.line_num + line_offset.value
+		FROM line_offset
+		WHERE item.material_request_id = $1
+	`, documentID); err != nil {
+		return err
+	}
+
+	for index, item := range items {
+		var requiredDate any
+		if item.RequiredDate != nil {
+			requiredDate = item.RequiredDate.String()
+		}
+
+		if item.ID == 0 {
+			if err := tx.QueryRow(ctx, `
+				INSERT INTO public.material_request_items (
+					line_num,
+					material_request_id,
+					material_id,
+					measure_unit_id,
+					quant,
+					supplier_id,
+					required_date,
+					order_importance_id,
+					status_id
+				)
+				VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+				RETURNING id
+			`,
+				index+1,
+				documentID,
+				item.MaterialID,
+				item.MeasureUnitID,
+				item.Quant,
+				item.SupplierID,
+				requiredDate,
+				item.OrderImportanceID,
+				item.StatusID,
+			).Scan(&item.ID); err != nil {
+				return err
+			}
+			continue
+		}
+
+		if _, ok := existing[item.ID]; !ok {
+			return invalidMaterialDocumentItem(index, "id does not belong to this document")
+		}
+		if _, err := tx.Exec(ctx, `
+			UPDATE public.material_request_items
+			SET
+				line_num = $3,
+				material_id = $4,
+				measure_unit_id = $5,
+				quant = $6,
+				supplier_id = $7,
+				required_date = $8,
+				order_importance_id = $9,
+				status_id = $10
+			WHERE id = $1
+				AND material_request_id = $2
+		`,
+			item.ID,
+			documentID,
+			index+1,
+			item.MaterialID,
+			item.MeasureUnitID,
+			item.Quant,
+			item.SupplierID,
+			requiredDate,
+			item.OrderImportanceID,
+			item.StatusID,
+		); err != nil {
+			return err
+		}
+		delete(existing, item.ID)
+	}
+
+	return deleteMaterialDocumentItems(ctx, tx, "public.material_request_items", "material_request_id", documentID, existing)
+}
+
+func prepareMaterialRequestReferences(
+	ctx context.Context,
+	tx ds.Querier,
+	document *models.MaterialRequestDocument,
+) error {
+	draftStatusID, err := materialRequestStatusID(ctx, tx, models.MaterialRequestStatusCodeDraft)
+	if err != nil {
+		return err
+	}
+	for _, item := range document.Items {
+		if item.ID == 0 {
+			item.StatusID = draftStatusID
+		}
+	}
+
+	var managerRole string
+	var constructionSiteExists bool
+	if err := tx.QueryRow(ctx, `
+		SELECT
+			manager.role_id::text,
+			(site.id IS NOT NULL)
+		FROM public.users AS manager
+		LEFT JOIN public.construction_sites AS site
+			ON site.id = $2
+		WHERE manager.id = $1
+	`, document.ConstructionManagerID, document.ConstructionSiteID).Scan(
+		&managerRole,
+		&constructionSiteExists,
+	); err != nil {
+		if errors.Is(err, ds.ErrNoRows) {
+			return webapp.BadRequest(
+				"material request construction_manager_id does not reference a user",
+				map[string]any{"construction_manager_id": document.ConstructionManagerID},
+			)
+		}
+		return err
+	}
+	if managerRole != models.RoleIDConstructionSiteManager.String() {
+		return webapp.BadRequest(
+			"material request construction manager should have construction_site_manager role",
+			map[string]any{
+				"construction_manager_id": document.ConstructionManagerID,
+				"role_id":                 managerRole,
+			},
+		)
+	}
+	if !constructionSiteExists {
+		return webapp.BadRequest(
+			"material request construction_site_id does not reference a construction site",
+			map[string]any{"construction_site_id": document.ConstructionSiteID},
+		)
+	}
+
+	materialIDs := make([]int, len(document.Items))
+	measureUnitIDs := make([]int, len(document.Items))
+	importanceIDs := make([]int, len(document.Items))
+	statusIDs := make([]int, len(document.Items))
+	supplierIDs := make([]int, len(document.Items))
+	itemIDs := make([]int, len(document.Items))
+	for index, item := range document.Items {
+		materialIDs[index] = item.MaterialID
+		measureUnitIDs[index] = item.MeasureUnitID
+		importanceIDs[index] = item.OrderImportanceID
+		statusIDs[index] = item.StatusID
+		itemIDs[index] = item.ID
+		if item.SupplierID != nil {
+			supplierIDs[index] = *item.SupplierID
+		}
+	}
+
+	var index, materialID, measureUnitID, importanceID, statusID, supplierID int
+	var expectedMeasureUnitID *int
+	var materialExists, importanceExists, inactiveChangedImportance, statusExists, supplierExists bool
+	err = tx.QueryRow(ctx, `
+		WITH submitted AS (
+			SELECT
+				input.material_id,
+				input.measure_unit_id,
+				input.order_importance_id,
+				input.status_id,
+				input.supplier_id,
+				input.item_id,
+				input.ordinality::integer AS item_index
+			FROM unnest(
+				$1::integer[],
+				$2::integer[],
+				$3::integer[],
+				$4::integer[],
+				$5::integer[],
+				$6::integer[]
+			) WITH ORDINALITY AS input(
+				material_id,
+				measure_unit_id,
+				order_importance_id,
+				status_id,
+				supplier_id,
+				item_id,
+				ordinality
+			)
+		)
+		SELECT
+			submitted.item_index - 1,
+			submitted.material_id,
+			submitted.measure_unit_id,
+			submitted.order_importance_id,
+			submitted.status_id,
+			submitted.supplier_id,
+			material.measure_unit_id,
+			(material.id IS NOT NULL),
+			(importance.id IS NOT NULL),
+			(
+				importance.id IS NOT NULL
+				AND importance.is_active IS NOT TRUE
+				AND (
+					submitted.item_id = 0
+					OR existing_item.order_importance_id IS DISTINCT FROM submitted.order_importance_id
+				)
+			),
+			(status.id IS NOT NULL),
+			(submitted.supplier_id = 0 OR supplier.id IS NOT NULL)
+		FROM submitted
+		LEFT JOIN public.materials AS material
+			ON material.id = submitted.material_id
+		LEFT JOIN public.order_importances AS importance
+			ON importance.id = submitted.order_importance_id
+		LEFT JOIN public.material_request_items AS existing_item
+			ON existing_item.id = submitted.item_id
+		LEFT JOIN public.material_request_statuses AS status
+			ON status.id = submitted.status_id
+		LEFT JOIN public.suppliers AS supplier
+			ON supplier.id = NULLIF(submitted.supplier_id, 0)
+		WHERE material.id IS NULL
+			OR material.measure_unit_id <> submitted.measure_unit_id
+			OR importance.id IS NULL
+			OR (
+				importance.is_active IS NOT TRUE
+				AND (
+					submitted.item_id = 0
+					OR existing_item.order_importance_id IS DISTINCT FROM submitted.order_importance_id
+				)
+			)
+			OR status.id IS NULL
+			OR (submitted.supplier_id <> 0 AND supplier.id IS NULL)
+		ORDER BY submitted.item_index
+		LIMIT 1
+	`, materialIDs, measureUnitIDs, importanceIDs, statusIDs, supplierIDs, itemIDs).Scan(
+		&index,
+		&materialID,
+		&measureUnitID,
+		&importanceID,
+		&statusID,
+		&supplierID,
+		&expectedMeasureUnitID,
+		&materialExists,
+		&importanceExists,
+		&inactiveChangedImportance,
+		&statusExists,
+		&supplierExists,
+	)
+	if errors.Is(err, ds.ErrNoRows) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	if !materialExists {
+		return invalidMaterialDocumentItem(index, fmt.Sprintf("material_id %d does not reference a material", materialID))
+	}
+	if expectedMeasureUnitID == nil || *expectedMeasureUnitID != measureUnitID {
+		return webapp.BadRequest(
+			fmt.Sprintf("items[%d]: measure_unit_id does not match the selected material", index),
+			map[string]any{
+				"item_index":               index,
+				"material_id":              materialID,
+				"measure_unit_id":          measureUnitID,
+				"expected_measure_unit_id": expectedMeasureUnitID,
+			},
+		)
+	}
+	if !importanceExists {
+		return invalidMaterialDocumentItem(index, fmt.Sprintf("order_importance_id %d does not reference an order importance", importanceID))
+	}
+	if inactiveChangedImportance {
+		return invalidMaterialDocumentItem(index, fmt.Sprintf("order_importance_id %d is inactive", importanceID))
+	}
+	if !statusExists {
+		return invalidMaterialDocumentItem(index, fmt.Sprintf("status_id %d does not reference a material request status", statusID))
+	}
+	if !supplierExists {
+		return invalidMaterialDocumentItem(index, fmt.Sprintf("supplier_id %d does not reference a supplier", supplierID))
+	}
+
+	return nil
+}
+
+func materialRequestStatusID(ctx context.Context, tx ds.Querier, code string) (int, error) {
+	var id int
+	if err := tx.QueryRow(ctx, `
+		SELECT id
+		FROM public.material_request_statuses
+		WHERE code = $1
+	`, code).Scan(&id); err != nil {
+		if errors.Is(err, ds.ErrNoRows) {
+			return 0, webapp.Internal(
+				"material request workflow status is not configured",
+				map[string]any{"status_code": code},
+			)
+		}
+		return 0, err
+	}
+	return id, nil
 }
 
 func materialDocumentItemIDs(

@@ -1,0 +1,136 @@
+name: OrderImportance
+comment: OrderImportance describes an editable material request importance reference entry.
+humanName: order importance
+humanNamePlural: order importances
+
+table:
+  schema: public
+  name: order_importances
+  comment: Material request importance reference data.
+  checks:
+    - btrim(name) <> ''
+    - sort_order >= 0
+
+route: /order-importances
+permissionPrefix: orderImportance
+serviceName: OrderImportance
+sessionRequired: true
+crudNotifications: true
+
+keys:
+  - name: id
+    pathName: id
+    type: int
+
+fields:
+  - name: id
+    type: int
+    primaryKey: true
+    autoIncrement: true
+    serverGenerated: true
+
+  - name: name
+    type: text
+    required: true
+    comment: Display name of the importance level.
+
+  - name: sort_order
+    type: int
+    required: true
+    dbRequired: true
+    default: "0"
+    comment: Display and priority order.
+
+  - name: is_active
+    type: bool
+    required: true
+    dbRequired: true
+    default: "true"
+    comment: Whether the importance level can be selected for new request items.
+
+crud:
+  create: true
+  list: true
+  detail: true
+  update: true
+  delete: true
+
+permissions:
+  enabled: true
+  grantRoles:
+    - admin
+  descriptions:
+    create: Создание важности заявки на материалы
+    list: Просмотр списка важности заявок на материалы
+    detail: Просмотр важности заявки на материалы
+    update: Изменение важности заявки на материалы
+    delete: Удаление важности заявки на материалы
+
+applicationRoute:
+  enabled: true
+  name: orderImportances
+  path: /order-importances
+  description: Важность заявок
+  section: Справочники
+  icon: pi pi-sort-amount-down
+  menuAvailable: true
+
+menu:
+  enabled: true
+  role: admin
+  caption: Важность заявок
+  sortOrder: 20
+  parent:
+    caption: Заявки на материалы
+    sortOrder: 45
+    create: true
+
+frontend:
+  scaffold: true
+  title: Важность заявок
+
+  form:
+    enabled: false
+
+  list:
+    pageSize: 30
+    editMode: inline
+    columns:
+      - field: id
+        label: ID
+        width: 8rem
+
+      - field: name
+        label: Наименование
+        width: 28rem
+        editable: true
+
+      - field: sort_order
+        label: Порядок
+        width: 10rem
+        editable: true
+
+      - field: is_active
+        label: Активна
+        width: 8rem
+        editable: true
+
+  routes:
+    listName: orderImportances
+    createName: orderImportanceCreate
+    editName: orderImportanceEdit
+
+migration:
+  enabled: true
+  indexes:
+    - name: order_importances_name_idx
+      columns:
+        - lower(name)
+      unique: true
+    - name: order_importances_sort_order_idx
+      columns:
+        - sort_order
+      unique: false
+
+test:
+  enabled: false

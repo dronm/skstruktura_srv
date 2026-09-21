@@ -1,0 +1,122 @@
+name: MaterialRequestStatus
+comment: MaterialRequestStatus describes an editable material request item status reference entry.
+humanName: material request status
+humanNamePlural: material request statuses
+
+table:
+  schema: public
+  name: material_request_statuses
+  comment: Material request item status reference data.
+  checks:
+    - btrim(code) <> ''
+    - btrim(name) <> ''
+    - code IN ('draft', 'submitted', 'in_progress', 'completed', 'cancelled')
+
+route: /material-request-statuses
+permissionPrefix: materialRequestStatus
+serviceName: MaterialRequestStatus
+sessionRequired: true
+crudNotifications: true
+
+keys:
+  - name: id
+    pathName: id
+    type: int
+
+fields:
+  - name: id
+    type: int
+    primaryKey: true
+    autoIncrement: true
+    serverGenerated: true
+
+  - name: code
+    type: string
+    required: true
+    serverGenerated: true
+    maxLen: 40
+    comment: Stable status code used by the material request workflow.
+
+  - name: name
+    type: text
+    required: true
+    comment: Display name of the status.
+
+crud:
+  create: false
+  list: true
+  detail: true
+  update: true
+  delete: false
+
+permissions:
+  enabled: true
+  grantRoles:
+    - admin
+  descriptions:
+    list: Просмотр списка статусов заявок на материалы
+    detail: Просмотр статуса заявки на материалы
+    update: Изменение статуса заявки на материалы
+
+applicationRoute:
+  enabled: true
+  name: materialRequestStatuses
+  path: /material-request-statuses
+  description: Статусы заявок
+  section: Справочники
+  icon: pi pi-tags
+  menuAvailable: true
+
+menu:
+  enabled: true
+  role: admin
+  caption: Статусы заявок
+  sortOrder: 10
+  parent:
+    caption: Заявки на материалы
+    sortOrder: 45
+    create: true
+
+frontend:
+  scaffold: true
+  title: Статусы заявок
+
+  form:
+    enabled: false
+
+  list:
+    pageSize: 30
+    editMode: inline
+    columns:
+      - field: id
+        label: ID
+        width: 8rem
+
+      - field: code
+        label: Код
+        width: 16rem
+
+      - field: name
+        label: Наименование
+        width: 28rem
+        editable: true
+
+  routes:
+    listName: materialRequestStatuses
+    createName: materialRequestStatusCreate
+    editName: materialRequestStatusEdit
+
+migration:
+  enabled: true
+  indexes:
+    - name: material_request_statuses_code_idx
+      columns:
+        - code
+      unique: true
+    - name: material_request_statuses_name_idx
+      columns:
+        - lower(name)
+      unique: true
+
+test:
+  enabled: false

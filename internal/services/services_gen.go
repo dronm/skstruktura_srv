@@ -12,6 +12,9 @@ func RegisterGeneratedServices() {
 	RegisterMaterialConsumptionItemService()
 	RegisterMaterialReceiptService()
 	RegisterMaterialReceiptItemService()
+	RegisterMaterialRequestService()
+	RegisterMaterialRequestItemService()
+	RegisterMaterialRequestStatusService()
 	RegisterMaterialStatusService()
 	RegisterMaterialTransferService()
 	RegisterMaterialTransferItemService()
@@ -19,5 +22,6 @@ func RegisterGeneratedServices() {
 	RegisterMaxUserService()
 	RegisterMeasureUnitService()
 	RegisterNotificationTemplateService()
+	RegisterOrderImportanceService()
 	RegisterSupplierService()
 }

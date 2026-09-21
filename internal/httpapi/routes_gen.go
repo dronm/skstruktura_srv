@@ -14,6 +14,9 @@ func registerGeneratedRoutes(api *webapp.Group) {
 	materialConsumptionItemRoutes(api)
 	materialReceiptRoutes(api)
 	materialReceiptItemRoutes(api)
+	materialRequestRoutes(api)
+	materialRequestItemRoutes(api)
+	materialRequestStatusRoutes(api)
 	materialStatusRoutes(api)
 	materialTransferRoutes(api)
 	materialTransferItemRoutes(api)
@@ -21,5 +24,6 @@ func registerGeneratedRoutes(api *webapp.Group) {
 	maxUserRoutes(api)
 	measureUnitRoutes(api)
 	notificationTemplateRoutes(api)
+	orderImportanceRoutes(api)
 	supplierRoutes(api)
 }

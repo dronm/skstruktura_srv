@@ -19,6 +19,7 @@ func registerServices(
 	services.RegisterMainMenuService(mainMenuCache)
 	services.RegisterApplicationRouteService(mainMenuCache)
 	services.RegisterMaterialActionReportService()
+	services.RegisterMaterialBalanceService()
 	services.RegisterObjectHistoryService()
 
 	services.RegisterGeneratedServices()
