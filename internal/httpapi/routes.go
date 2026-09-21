@@ -31,6 +31,7 @@ func BuildRoutes(diadocManagers ...*diadoc.Manager) []webapp.Route {
 	materialActionReportRoutes(&api)
 	materialBalanceRoutes(&api)
 	constructionManagerMaterialRequestRoutes(&api)
+	constructionManagerMaterialConsumptionRoutes(&api)
 	objectHistoryRoutes(&api)
 
 	progAboutRoutes(&api)

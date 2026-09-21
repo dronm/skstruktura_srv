@@ -27,41 +27,49 @@ func (s *MaterialConsumptionService) Create(
 
 	var result *models.MaterialConsumptionDocument
 	if err := withPrimaryTransaction(ctx, s.DB, func(tx ds.Tx) error {
-		if err := tx.QueryRow(ctx, `
-			INSERT INTO public.material_consumptions (
-				date,
-				construction_site_id,
-				comment
-			)
-			VALUES ($1, $2, $3)
-			RETURNING id, version
-		`,
-			document.Date,
-			document.ConstructionSiteID,
-			document.Comment,
-		).Scan(&document.ID, &document.Version); err != nil {
-			return err
-		}
-		if err := syncMaterialConsumptionItems(ctx, tx, document.ID, document.Items); err != nil {
-			return err
-		}
-		if err := rebuildMaterialRegisterActions(
-			ctx,
-			tx,
-			materialConsumptionRecorderType,
-			document.ID,
-		); err != nil {
-			return err
-		}
-
 		var err error
-		result, err = fetchMaterialConsumptionDocument(ctx, tx, document.ID)
+		result, err = createMaterialConsumptionDocument(ctx, tx, document)
 		return err
 	}); err != nil {
 		return nil, fmt.Errorf("create complete material consumption: %w", err)
 	}
 
 	return result, nil
+}
+
+func createMaterialConsumptionDocument(
+	ctx context.Context,
+	tx ds.Querier,
+	document *models.MaterialConsumptionDocument,
+) (*models.MaterialConsumptionDocument, error) {
+	if err := tx.QueryRow(ctx, `
+		INSERT INTO public.material_consumptions (
+			date,
+			construction_site_id,
+			comment
+		)
+		VALUES ($1, $2, $3)
+		RETURNING id, version
+	`,
+		document.Date,
+		document.ConstructionSiteID,
+		document.Comment,
+	).Scan(&document.ID, &document.Version); err != nil {
+		return nil, err
+	}
+	if err := syncMaterialConsumptionItems(ctx, tx, document.ID, document.Items); err != nil {
+		return nil, err
+	}
+	if err := rebuildMaterialRegisterActions(
+		ctx,
+		tx,
+		materialConsumptionRecorderType,
+		document.ID,
+	); err != nil {
+		return nil, err
+	}
+
+	return fetchMaterialConsumptionDocument(ctx, tx, document.ID)
 }
 
 func (s *MaterialConsumptionService) Update(
