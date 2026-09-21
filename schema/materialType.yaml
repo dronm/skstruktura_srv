@@ -1,0 +1,138 @@
+name: MaterialType
+comment: MaterialType describes an editable material type unit reference entry.
+humanName: material type
+humanNamePlural: material types
+
+table:
+  schema: public
+  name: material_types
+  comment: Material type reference data.
+  checks:
+    - btrim(name) <> ''
+    - btrim(code) <> ''
+
+route: /material-types
+permissionPrefix: materialType
+serviceName: MaterialType
+sessionRequired: true
+crudNotifications: true
+
+keys:
+  - name: id
+    pathName: id
+    type: int
+
+fields:
+  - name: id
+    type: int
+    primaryKey: true
+    autoIncrement: true
+    serverGenerated: true
+
+  - name: code
+    type: string
+    required: true
+    maxLen: 80
+    comment: Unique material type code
+
+  - name: name
+    type: text
+    required: true
+    comment: Display name of the material type.
+
+  - name: is_active
+    type: bool
+    required: true
+    dbRequired: true
+    default: "true"
+
+crud:
+  create: true
+  list: true
+  detail: true
+  update: true
+  delete: true
+
+permissions:
+  enabled: true
+  grantRoles:
+    - admin
+  descriptions:
+    create: Создание вида материала
+    list: Просмотр списка видов материалов
+    detail: Просмотр вида материала
+    update: Изменение вида материала
+    delete: Удаление вида материала
+
+applicationRoute:
+  enabled: true
+  name: materialTypes
+  path: /material-types
+  description: Виды материалов
+  section: Справочники
+  icon: pi pi-bookmark
+  menuAvailable: true
+
+menu:
+  enabled: true
+  role: admin
+  caption: Виды материалов
+  sortOrder: 10
+  parent:
+    caption: Виды материалов
+    sortOrder: 40
+    create: true
+
+frontend:
+  scaffold: true
+  title: Виды материалов
+
+  list:
+    pageSize: 30
+    editMode: inline
+    columns:
+      - field: id
+        label: ID
+        width: 8rem
+
+      - field: code
+        label: Код
+        width: 16rem
+
+      - field: name
+        label: Наименование
+        width: 32rem
+
+      - field: is_active
+        label: Активна
+        width: 8rem
+
+  routes:
+    listName: materialTypes
+    createName: materialTypeCreate
+    editName: materialTypeEdit
+
+migration:
+  enabled: true
+  indexes:
+    - name: material_types_code_idx
+      columns:
+        - code
+      unique: true
+    - name: material_types_name_idx
+      columns:
+        - lower(name)
+      unique: true
+
+# Generated integration tests require full CRUD and concrete values that satisfy
+# all foreign keys in the target database. Enable only after supplying them.
+test:
+  enabled: true
+  createBody:
+    code: TEST_mat_type
+    name: Test material type
+    is_active: true
+  updateBody:
+    name: Updated test material type
+  checkUpdatedField: name
+  checkUpdatedValue: Updated test material type

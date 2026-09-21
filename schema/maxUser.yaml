@@ -1,0 +1,211 @@
+name: MaxUser
+comment: MaxUser describes an editable MAX user reference entry.
+humanName: MAX user
+humanNamePlural: MAX users
+
+table:
+  schema: public
+  name: max_users
+  comment: MAX user reference data.
+
+route: /max-users
+permissionPrefix: maxUser
+serviceName: MaxUser
+sessionRequired: true
+crudNotifications: true
+
+keys:
+  - name: id
+    pathName: id
+    type: int
+
+fields:
+  - name: id
+    type: int
+    primaryKey: true
+    autoIncrement: true
+    serverGenerated: true
+
+  - name: contact_id
+    type: int
+    nullable: true
+    references:
+      schema: public
+      table: contacts
+      column: id
+      onDelete: RESTRICT
+      onUpdate: CASCADE
+    comment: Contact reference
+
+  - name: max_user_id
+    type: bigint
+    required: true
+    comment: MAX user ID
+
+  - name: username
+    type: text
+    nullable: true
+    comment: Display name of the MAX user.
+
+  - name: avatar_url
+    type: text
+    required: false
+    nullable: true
+    comment: MAX user avatar.
+
+  - name: raw_user
+    type: jsonb
+    required: true
+    comment: Raw MAX user data.
+
+  - name: raw_user_with_photo
+    type: jsonb
+    required: false
+    nullable: true
+    comment: Raw MAX user data containing photo information.
+
+  - name: is_active
+    type: bool
+    required: true
+    dbRequired: true
+    default: "true"
+    comment: Whether the MAX user is active.
+
+list:
+  model: MaxUserList
+  table:
+    schema: public
+    name: max_users_list
+  fields:
+    - name: id
+      type: int
+      primaryKey: true
+
+    - name: contact
+      type: json
+      goType: "*Ref"
+      nullable: true
+
+    - name: max_user_id
+      type: bigint
+
+    - name: username
+      type: text
+      nullable: true
+
+    - name: avatar_url
+      nullable: true
+      type: text
+
+    - name: raw_user
+      type: jsonb
+
+    - name: is_active
+      type: bool
+
+crud:
+  list: true
+  detail: true
+  update: true
+  delete: true
+
+permissions:
+  enabled: true
+  grantRoles:
+    - admin
+  descriptions:
+    list: Просмотр списка пользователей MAX
+    detail: Просмотр пользователя MAX
+    update: Изменение пользователя MAX
+    delete: Удаление пользователя MAX
+
+applicationRoute:
+  enabled: true
+  name: maxUsers
+  path: /max-users
+  description: Пользователи MAX
+  section: Справочники
+  icon: pi pi-id-card
+  menuAvailable: true
+
+menu:
+  enabled: true
+  role: admin
+  caption: Пользователи MAX
+  sortOrder: 10
+  parent:
+    caption: Пользователи MAX
+    sortOrder: 40
+    create: true
+
+frontend:
+  scaffold: true
+  title: Пользователи MAX
+
+  form:
+    columns: 2
+    createTitle: Новый пользователь MAX
+    editTitle: Пользователь MAX
+    copyTitle: Копия пользователя MAX
+    fields:
+      - field: contact_id
+        label: Контакт
+        component: ContactReferenceInput
+        componentImport: "@/components/references/ContactReferenceInput.vue"
+        autofocus: true
+
+      - field: max_user_id
+        label: Идентификатор MAX
+        component: number
+        autofocus: false
+
+      - field: username
+        label: Имя пользователя MAX
+        component: text
+        autofocus: false
+
+      - field: is_active
+        label: Активен
+        component: checkbox
+        default: true
+
+  list:
+    pageSize: 30
+    columns:
+      - field: username
+        label: Имя MAX
+        width: 24rem
+
+      - field: contact
+        label: Контакт
+        width: 30rem
+
+      - field: max_user_id
+        label: Идентификатор MAX
+        width: 12rem
+
+      - field: is_active
+        label: Активен
+        width: 8rem
+
+  routes:
+    listName: maxUsers
+    createName: maxUserCreate
+    editName: maxUserEdit
+
+migration:
+  enabled: true
+  indexes:
+    - name: max_users_max_user_id_idx
+      columns:
+        - max_user_id
+      unique: true
+
+    - name: max_users_contact_id_idx
+      columns:
+        - contact_id
+
+# Generated integration tests require full CRUD and concrete values that satisfy
+# all foreign keys in the target database. Enable only after supplying them.
+test:
+  enabled: false

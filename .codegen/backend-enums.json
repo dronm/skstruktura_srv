@@ -1,0 +1,13 @@
+{
+	"version": 1,
+	"files": [
+		{
+			"path": "internal/models/materialStatusType.enum.gen.go",
+			"sha256": "76856369337874d94f17379ae54503e4d12e7a28df2b46e6d3252cce458d85a5"
+		},
+		{
+			"path": "internal/models/enums_registry.gen.go",
+			"sha256": "f78c21807bedf72c790a57c7fe54941aa5f63f516860ce2080048645fb9989cf"
+		}
+	]
+}

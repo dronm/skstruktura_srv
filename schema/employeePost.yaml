@@ -1,0 +1,115 @@
+name: EmployeePost
+comment: EmployeePost describes an editable post unit reference entry.
+humanName: employee post
+humanNamePlural: employee posts
+
+table:
+  schema: public
+  name: employee_posts
+  comment: Employee post reference data.
+  checks:
+    - btrim(name) <> ''
+
+route: /employee-post
+permissionPrefix: employeePost
+serviceName: EmployeePost
+sessionRequired: true
+crudNotifications: true
+
+keys:
+  - name: id
+    pathName: id
+    type: int
+
+fields:
+  - name: id
+    type: int
+    primaryKey: true
+    autoIncrement: true
+    serverGenerated: true
+
+  - name: name
+    type: text
+    required: true
+    comment: Display name of the post.
+
+  - name: is_active
+    type: bool
+    required: true
+    dbRequired: true
+    default: "true"
+
+crud:
+  create: true
+  list: true
+  detail: true
+  update: true
+  delete: true
+
+permissions:
+  enabled: true
+  grantRoles:
+    - admin
+  descriptions:
+    create: Создание должнности
+    list: Просмотр списка должностей
+    detail: Просмотр должнности
+    update: Изменение должнности
+    delete: Удаление должнности
+
+applicationRoute:
+  enabled: true
+  name: employeePosts
+  path: /employee-post
+  description: Должности
+  section: Справочники
+  icon: pi pi-sitemap
+  menuAvailable: true
+
+menu:
+  enabled: true
+  role: admin
+  caption: Должности
+  sortOrder: 10
+  parent:
+    caption: Должности
+    sortOrder: 40
+    create: true
+
+frontend:
+  scaffold: true
+  title: Должности
+
+  list:
+    pageSize: 30
+    editMode: inline
+    columns:
+      - field: id
+        label: ID
+        width: 8rem
+
+      - field: name
+        label: Наименование
+        width: 32rem
+
+      - field: is_active
+        label: Активна
+        width: 8rem
+
+  routes:
+    listName: employeePosts
+    createName: employeePostCreate
+    editName: employeePostEdit
+
+migration:
+  enabled: true
+  indexes:
+    - name: employee_posts_name_idx
+      columns:
+        - lower(name)
+
+# Generated integration tests require full CRUD and concrete values that satisfy
+# all foreign keys in the target database. Enable only after supplying them.
+test:
+  enabled: false
+

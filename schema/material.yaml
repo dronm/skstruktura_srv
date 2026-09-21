@@ -1,0 +1,224 @@
+name: Material
+comment: Material describes an editable material reference entry.
+humanName: material
+humanNamePlural: materials
+
+table:
+  schema: public
+  name: materials
+  comment: Material reference data.
+  checks:
+    - btrim(name) <> ''
+
+route: /material
+permissionPrefix: material
+serviceName: Material
+sessionRequired: true
+crudNotifications: true
+
+keys:
+  - name: id
+    pathName: id
+    type: int
+
+fields:
+  - name: id
+    type: int
+    primaryKey: true
+    autoIncrement: true
+    serverGenerated: true
+
+  - name: name
+    type: string
+    required: true
+    maxLen: 500
+    comment: Display name of the material.
+
+  - name: name_full
+    type: text
+    nullable: true
+    required: false
+    comment: Full name of the material.
+
+  - name: measure_unit_id
+    type: int
+    required: true
+    references:
+      schema: public
+      table: measure_units
+      column: id
+      onDelete: RESTRICT
+      onUpdate: CASCADE
+    comment: Base measurement unit of the material.
+
+  - name: material_type_id
+    type: int
+    required: true
+    references:
+      schema: public
+      table: material_types
+      column: id
+      onDelete: RESTRICT
+      onUpdate: CASCADE
+    comment: Material type unit of the material.
+
+  - name: is_active
+    type: bool
+    required: true
+    dbRequired: true
+    default: "true"
+
+list:
+  model: MaterialList
+  table:
+    schema: public
+    name: materials_list
+  fields:
+    - name: id
+      type: int
+      primaryKey: true
+
+    - name: name
+      type: string
+      required: true
+
+    - name: name_full
+      type: text
+      nullable: true
+
+    - name: measure_unit_id
+      type: int
+      required: true
+
+    - name: measure_unit
+      type: jsonb
+      goType: "*Ref"
+      required: true
+
+    - name: material_type_id
+      type: int
+      required: true
+
+    - name: material_type
+      type: jsonb
+      goType: "*Ref"
+      required: true
+
+    - name: is_active
+      type: bool
+      required: true
+
+    - name: balances
+      type: jsonb
+      goType: "JSONValue"
+      required: true
+
+crud:
+  create: true
+  list: true
+  detail: true
+  update: true
+  delete: true
+
+service:
+  manualMethods:
+    - detail
+
+permissions:
+  enabled: true
+  grantRoles:
+    - admin
+  descriptions:
+    create: Создание материала
+    list: Просмотр списка материалов
+    detail: Просмотр материала
+    update: Изменение материала
+    delete: Удаление материала
+
+applicationRoute:
+  enabled: true
+  name: materials
+  path: /material
+  description: Материалы
+  section: Справочники
+  icon: pi pi-car
+  menuAvailable: true
+
+menu:
+  enabled: true
+  role: admin
+  caption: Материалы
+  sortOrder: 10
+  parent:
+    caption: Материалы
+    sortOrder: 40
+    create: true
+
+frontend:
+  scaffold: true
+  title: Материалы
+  form:
+    columns: 2
+    createTitle: Новый материал
+    editTitle: Материал
+    copyTitle: Копия материалa
+    fields:
+      - field: material_type_id
+        label: Вид материала
+        component: MaterialTypeReferenceInput
+        componentImport: "@/components/references/MaterialTypeReferenceInput.vue"
+        autofocus: false
+
+      - field: name
+        label: Наименование
+        component: text
+        autofocus: true
+
+      - field: name_full
+        label: Полн. наименование
+        component: text
+        autofocus: false
+
+      - field: measure_unit_id
+        label: Единица
+        component: MeasureUnitReferenceInput
+        componentImport: "@/components/references/MeasureUnitReferenceInput.vue"
+        autofocus: false
+
+      - field: is_active
+        label: Активна
+        component: checkbox
+        default: true
+
+  list:
+    pageSize: 30
+    columns:
+      - field: id
+        label: ID
+        width: 8rem
+
+      - field: name
+        label: Наименование
+        width: 32rem
+
+      - field: is_active
+        label: Активна
+        width: 8rem
+
+  routes:
+    listName: materials
+    createName: materialCreate
+    editName: materialEdit
+
+migration:
+  enabled: true
+  indexes:
+    - name: materials_name_idx
+      columns:
+        - lower(name)
+
+# Generated integration tests require full CRUD and concrete values that satisfy
+# all foreign keys in the target database. Enable only after supplying them.
+test:
+  enabled: false
+

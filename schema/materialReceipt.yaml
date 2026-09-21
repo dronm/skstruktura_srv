@@ -1,0 +1,220 @@
+name: MaterialReceipt
+comment: MaterialReceipt describes a material receipt document.
+humanName: material receipt
+humanNamePlural: material receipts
+
+table:
+  schema: public
+  name: material_receipts
+  comment: Material receipt document headers.
+
+route: /material-receipts
+permissionPrefix: materialReceipt
+serviceName: MaterialReceipt
+sessionRequired: true
+crudNotifications: true
+
+keys:
+  - name: id
+    pathName: id
+    type: int
+
+fields:
+  - name: id
+    type: int
+    primaryKey: true
+    autoIncrement: true
+    serverGenerated: true
+
+  - name: date
+    type: date
+    required: true
+    comment: Document date and time.
+
+  - name: construction_site_id
+    type: int
+    required: false
+    nullable: true
+    references:
+      schema: public
+      table: construction_sites
+      column: id
+      onDelete: RESTRICT
+      onUpdate: CASCADE
+    comment: Optional default site for receipt lines without a site override.
+
+  - name: supplier_id
+    type: int
+    required: true
+    references:
+      schema: public
+      table: suppliers
+      column: id
+      onDelete: RESTRICT
+      onUpdate: CASCADE
+    comment: Material supplier.
+
+  - name: number
+    type: text
+    required: true
+    comment: Document number.
+
+  - name: comment
+    type: text
+    nullable: true
+    comment: Optional document comment.
+
+  - name: version
+    type: int
+    sqlType: bigint
+    required: true
+    dbRequired: true
+    serverGenerated: true
+    default: "1"
+    comment: Optimistic concurrency version.
+
+list:
+  model: MaterialReceiptList
+  table:
+    schema: public
+    name: material_receipts_list
+  fields:
+  - name: id
+    type: int
+    primaryKey: true
+  - name: date
+    type: date
+    required: true
+  - name: construction_site_id
+    type: int
+    required: false
+    nullable: true
+  - name: supplier_id
+    type: int
+    required: true
+  - name: number
+    type: text
+    required: true
+  - name: comment
+    type: text
+    nullable: true
+  - name: version
+    type: int
+    required: true
+  - name: construction_site
+    type: jsonb
+    goType: '*Ref'
+    nullable: true
+  - name: supplier
+    type: jsonb
+    goType: '*Ref'
+
+crud:
+  create: true
+  list: true
+  detail: true
+  update: true
+  delete: true
+
+service:
+  manualMethods:
+    - detail
+    - create
+    - update
+    - delete
+
+permissions:
+  enabled: true
+  grantRoles:
+    - admin
+  descriptions:
+    create: Создание поступления материалов
+    list: Просмотр списка поступлений материалов
+    detail: Просмотр поступления материалов
+    update: Изменение поступления материалов
+    delete: Удаление поступления материалов
+
+applicationRoute:
+  enabled: true
+  name: materialReceipts
+  path: /material-receipts
+  description: Поступления материалов
+  section: Документы
+  icon: pi pi-download
+  menuAvailable: true
+
+menu:
+  enabled: true
+  role: admin
+  caption: Поступления материалов
+  sortOrder: 10
+  parent:
+    caption: Материалы
+    sortOrder: 40
+    create: true
+
+frontend:
+  scaffold: true
+  title: Поступления материалов
+  form:
+    columns: 2
+    createTitle: Новое поступление материалов
+    editTitle: Поступление материалов
+    copyTitle: Копия поступления материалов
+    fields:
+      - field: date
+        label: Дата
+        component: DatePicker
+        componentImport: primevue/datepicker
+        autofocus: true
+
+      - field: number
+        label: Номер
+        component: text
+
+      - field: construction_site_id
+        label: Объект строительства
+        component: number
+
+      - field: supplier_id
+        label: Поставщик
+        component: number
+
+      - field: comment
+        label: Комментарий
+        component: textarea
+        columnSpan: 2
+
+  list:
+    pageSize: 30
+    columns:
+      - field: id
+        label: ID
+        width: 8rem
+
+      - field: date
+        label: Дата
+        width: 10rem
+
+      - field: number
+        label: Номер
+        width: 12rem
+
+      - field: construction_site_id
+        label: Объект строительства
+        width: 12rem
+
+      - field: supplier_id
+        label: Поставщик
+        width: 12rem
+
+  routes:
+    listName: materialReceipts
+    createName: materialReceiptCreate
+    editName: materialReceiptEdit
+
+migration:
+  enabled: true
+
+test:
+  enabled: false

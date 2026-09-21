@@ -1,0 +1,194 @@
+name: MaterialStatus
+comment: MaterialStatus describes an editable material status unit reference entry.
+humanName: material status
+humanNamePlural: material statuses
+
+enums:
+  - name: material_status_type
+    goType: MaterialStatusType
+    sqlType: public.material_status_types
+    frontendName: MaterialStatusType
+    values:
+      - value: at_work
+        label: В работе
+      - value: on_maintenance
+        label: На обслуживании
+
+table:
+  schema: public
+  name: material_statuses
+  comment: Material status reference data.
+
+route: /material-statuses
+permissionPrefix: materialStatus
+serviceName: MaterialStatus
+sessionRequired: true
+crudNotifications: true
+
+keys:
+  - name: id
+    pathName: id
+    type: int
+
+fields:
+  - name: id
+    type: int
+    primaryKey: true
+    autoIncrement: true
+    serverGenerated: true
+
+  - name: created_at
+    type: timestamptz
+    required: true
+    comment: Document date and time
+    default: "now()"
+
+  - name: material_id
+    type: int
+    required: true
+    references:
+      schema: public
+      table: materials
+      column: id
+      onDelete: CASCADE
+      onUpdate: CASCADE
+    comment: Material reference
+
+  - name: status
+    type: enum
+    enum: material_status_type
+    required: true
+    frontendDefault: at_work
+    comment: Material status
+
+  - name: is_active
+    type: bool
+    required: true
+    dbRequired: true
+    default: "true"
+
+list:
+  model: MaterialStatusList
+  table:
+    schema: public
+    name: material_statuses_list
+  fields:
+    - name: id
+      type: int
+      primaryKey: true
+
+    - name: created_at
+      type: timestamptz
+      required: true
+      default: "now()"
+
+    - name: material_id
+      type: int
+      required: true
+
+    - name: material
+      type: jsonb
+      goType: "*Ref"
+      required: true
+
+    - name: status
+      type: enum
+      enum: material_status_type
+      required: true
+
+    - name: is_active
+      type: bool
+      required: true
+      default: "true"
+
+crud:
+  create: true
+  list: true
+  detail: true
+  update: true
+  delete: true
+
+permissions:
+  enabled: true
+  grantRoles:
+    - admin
+  descriptions:
+    create: Создание статуса материала
+    list: Просмотр списка статусов материалов
+    detail: Просмотр статуса материала
+    update: Изменение статуса материала
+    delete: Удаление статуса материала
+
+applicationRoute:
+  enabled: true
+  name: materialStatuses
+  path: /material-statuses
+  description: Статусы материалов
+  section: Справочники
+  icon: pi pi-tags
+  menuAvailable: true
+
+menu:
+  enabled: true
+  role: admin
+  caption: Статусы материалов
+  sortOrder: 10
+  parent:
+    caption: Статусы материалов
+    sortOrder: 40
+    create: true
+
+frontend:
+  scaffold: true
+  title: Статусы материалов
+
+  form:
+    enabled: false
+
+  list:
+    pageSize: 30
+    editMode: inline
+    columns:
+      - field: id
+        width: 8rem
+        label: ID
+
+      - field: created_at
+        label: Дата
+        editable: true
+
+      - field: material_id
+        label: Материал
+        editable: true
+        reference:
+          name: materialReference
+          import: "@/references/inventoryReferences"
+          field: material
+        sortField: "material->>'descr'"
+
+      - field: status
+        label: Статус
+        editable: true
+
+      - field: is_active
+        label: Активна
+        width: 8rem
+        editable: true
+
+  routes:
+    listName: materialStatuses
+    createName: materialStatusCreate
+    editName: materialStatusEdit
+
+migration:
+  enabled: true
+  indexes:
+    - name: material_statuses_material_id_idx
+      columns:
+        - material_id
+      unique: false
+
+# Generated integration tests require full CRUD and concrete values that satisfy
+# all foreign keys in the target database. Enable only after supplying them.
+test:
+  enabled: false

@@ -1,0 +1,154 @@
+name: MaterialTransferItem
+comment: MaterialTransferItem describes a line of a material transfer document.
+humanName: material transfer item
+humanNamePlural: material transfer items
+
+table:
+  schema: public
+  name: material_transfer_items
+  comment: Material transfer document lines.
+  checks:
+    - line_num > 0
+    - quant > 0
+
+route: /material-transfer-items
+permissionPrefix: materialTransferItem
+serviceName: MaterialTransferItem
+sessionRequired: true
+crudNotifications: true
+
+keys:
+  - name: id
+    pathName: id
+    type: int
+
+fields:
+  - name: id
+    type: int
+    primaryKey: true
+    autoIncrement: true
+    serverGenerated: true
+
+  - name: line_num
+    type: int
+    required: true
+    comment: Line number within the document.
+
+  - name: material_transfer_id
+    type: int
+    required: true
+    references:
+      schema: public
+      table: material_transfers
+      column: id
+      onDelete: CASCADE
+      onUpdate: CASCADE
+    comment: Parent material transfer document.
+
+  - name: material_id
+    type: int
+    required: true
+    references:
+      schema: public
+      table: materials
+      column: id
+      onDelete: RESTRICT
+      onUpdate: CASCADE
+    comment: Material.
+
+  - name: measure_unit_id
+    type: int
+    required: true
+    references:
+      schema: public
+      table: measure_units
+      column: id
+      onDelete: RESTRICT
+      onUpdate: CASCADE
+    comment: Measurement unit.
+
+  - name: quant
+    type: numeric
+    sqlType: numeric(19, 4)
+    required: true
+    comment: Material quantity.
+
+list:
+  model: MaterialTransferItemList
+  table:
+    schema: public
+    name: material_transfer_items_list
+  fields:
+  - name: id
+    type: int
+    primaryKey: true
+  - name: line_num
+    type: int
+    required: true
+  - name: material_transfer_id
+    type: int
+    required: true
+  - name: material_id
+    type: int
+    required: true
+  - name: measure_unit_id
+    type: int
+    required: true
+  - name: quant
+    type: numeric
+    required: true
+  - name: material
+    type: jsonb
+    goType: '*Ref'
+  - name: measure_unit
+    type: jsonb
+    goType: '*Ref'
+
+crud:
+  create: true
+  list: true
+  detail: true
+  update: true
+  delete: true
+
+service:
+  manualMethods:
+    - detail
+    - create
+    - update
+    - delete
+
+permissions:
+  enabled: true
+  grantRoles:
+    - admin
+  descriptions:
+    create: Создание строки перемещения материалов
+    list: Просмотр строк перемещения материалов
+    detail: Просмотр строки перемещения материалов
+    update: Изменение строки перемещения материалов
+    delete: Удаление строки перемещения материалов
+
+applicationRoute:
+  enabled: false
+
+menu:
+  enabled: false
+
+# The current public codegen does not expose CollectionGrid editMode in YAML.
+# Keep item entities without standalone pages; use their generated types/API
+# from the parent document's inline item grid.
+frontend:
+  scaffold: false
+
+migration:
+  enabled: true
+  indexes:
+    - name: material_transfer_items_material_transfer_id_line_num_idx
+      columns:
+        - material_transfer_id
+        - line_num
+      unique: true
+
+test:
+  enabled: false

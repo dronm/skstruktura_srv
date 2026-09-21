@@ -1,0 +1,154 @@
+name: MaterialConsumptionItem
+comment: MaterialConsumptionItem describes a line of a material consumption document.
+humanName: material consumption item
+humanNamePlural: material consumption items
+
+table:
+  schema: public
+  name: material_consumption_items
+  comment: Material consumption document lines.
+  checks:
+    - line_num > 0
+    - quant > 0
+
+route: /material-consumption-items
+permissionPrefix: materialConsumptionItem
+serviceName: MaterialConsumptionItem
+sessionRequired: true
+crudNotifications: true
+
+keys:
+  - name: id
+    pathName: id
+    type: int
+
+fields:
+  - name: id
+    type: int
+    primaryKey: true
+    autoIncrement: true
+    serverGenerated: true
+
+  - name: line_num
+    type: int
+    required: true
+    comment: Line number within the document.
+
+  - name: material_consumption_id
+    type: int
+    required: true
+    references:
+      schema: public
+      table: material_consumptions
+      column: id
+      onDelete: CASCADE
+      onUpdate: CASCADE
+    comment: Parent material consumption document.
+
+  - name: material_id
+    type: int
+    required: true
+    references:
+      schema: public
+      table: materials
+      column: id
+      onDelete: RESTRICT
+      onUpdate: CASCADE
+    comment: Material.
+
+  - name: measure_unit_id
+    type: int
+    required: true
+    references:
+      schema: public
+      table: measure_units
+      column: id
+      onDelete: RESTRICT
+      onUpdate: CASCADE
+    comment: Measurement unit.
+
+  - name: quant
+    type: numeric
+    sqlType: numeric(19, 4)
+    required: true
+    comment: Material quantity.
+
+list:
+  model: MaterialConsumptionItemList
+  table:
+    schema: public
+    name: material_consumption_items_list
+  fields:
+  - name: id
+    type: int
+    primaryKey: true
+  - name: line_num
+    type: int
+    required: true
+  - name: material_consumption_id
+    type: int
+    required: true
+  - name: material_id
+    type: int
+    required: true
+  - name: measure_unit_id
+    type: int
+    required: true
+  - name: quant
+    type: numeric
+    required: true
+  - name: material
+    type: jsonb
+    goType: '*Ref'
+  - name: measure_unit
+    type: jsonb
+    goType: '*Ref'
+
+crud:
+  create: true
+  list: true
+  detail: true
+  update: true
+  delete: true
+
+service:
+  manualMethods:
+    - detail
+    - create
+    - update
+    - delete
+
+permissions:
+  enabled: true
+  grantRoles:
+    - admin
+  descriptions:
+    create: Создание строки списания материалов
+    list: Просмотр строк списания материалов
+    detail: Просмотр строки списания материалов
+    update: Изменение строки списания материалов
+    delete: Удаление строки списания материалов
+
+applicationRoute:
+  enabled: false
+
+menu:
+  enabled: false
+
+# The current public codegen does not expose CollectionGrid editMode in YAML.
+# Keep item entities without standalone pages; use their generated types/API
+# from the parent document's inline item grid.
+frontend:
+  scaffold: false
+
+migration:
+  enabled: true
+  indexes:
+    - name: material_consumption_items_material_consumption_id_line_num_idx
+      columns:
+        - material_consumption_id
+        - line_num
+      unique: true
+
+test:
+  enabled: false

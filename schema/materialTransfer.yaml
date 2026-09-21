@@ -1,0 +1,203 @@
+name: MaterialTransfer
+comment: MaterialTransfer describes a material transfer document between construction sites.
+humanName: material transfer
+humanNamePlural: material transfers
+
+table:
+  schema: public
+  name: material_transfers
+  comment: Material transfer document headers.
+  checks:
+    - source_construction_site_id <> destination_construction_site_id
+
+route: /material-transfers
+permissionPrefix: materialTransfer
+serviceName: MaterialTransfer
+sessionRequired: true
+crudNotifications: true
+
+keys:
+  - name: id
+    pathName: id
+    type: int
+
+fields:
+  - name: id
+    type: int
+    primaryKey: true
+    autoIncrement: true
+    serverGenerated: true
+
+  - name: date
+    type: date
+    required: true
+    comment: Document date and time.
+
+  - name: source_construction_site_id
+    type: int
+    required: true
+    references:
+      schema: public
+      table: construction_sites
+      column: id
+      onDelete: RESTRICT
+      onUpdate: CASCADE
+    comment: Construction site materials are transferred from.
+
+  - name: destination_construction_site_id
+    type: int
+    required: true
+    references:
+      schema: public
+      table: construction_sites
+      column: id
+      onDelete: RESTRICT
+      onUpdate: CASCADE
+    comment: Construction site materials are transferred to.
+
+  - name: comment
+    type: text
+    nullable: true
+    comment: Optional document comment.
+
+  - name: version
+    type: int
+    sqlType: bigint
+    required: true
+    dbRequired: true
+    serverGenerated: true
+    default: "1"
+    comment: Optimistic concurrency version.
+
+list:
+  model: MaterialTransferList
+  table:
+    schema: public
+    name: material_transfers_list
+  fields:
+  - name: id
+    type: int
+    primaryKey: true
+  - name: date
+    type: date
+    required: true
+  - name: source_construction_site_id
+    type: int
+    required: true
+  - name: destination_construction_site_id
+    type: int
+    required: true
+  - name: comment
+    type: text
+    nullable: true
+  - name: version
+    type: int
+    required: true
+  - name: source_construction_site
+    type: jsonb
+    goType: '*Ref'
+  - name: destination_construction_site
+    type: jsonb
+    goType: '*Ref'
+
+crud:
+  create: true
+  list: true
+  detail: true
+  update: true
+  delete: true
+
+service:
+  manualMethods:
+    - detail
+    - create
+    - update
+    - delete
+
+permissions:
+  enabled: true
+  grantRoles:
+    - admin
+  descriptions:
+    create: Создание перемещения материалов
+    list: Просмотр списка перемещений материалов
+    detail: Просмотр перемещения материалов
+    update: Изменение перемещения материалов
+    delete: Удаление перемещения материалов
+
+applicationRoute:
+  enabled: true
+  name: materialTransfers
+  path: /material-transfers
+  description: Перемещения материалов
+  section: Документы
+  icon: pi pi-arrow-right-arrow-left
+  menuAvailable: true
+
+menu:
+  enabled: true
+  role: admin
+  caption: Перемещения материалов
+  sortOrder: 30
+  parent:
+    caption: Материалы
+    sortOrder: 40
+    create: true
+
+frontend:
+  scaffold: true
+  title: Перемещения материалов
+  form:
+    columns: 2
+    createTitle: Новое перемещение материалов
+    editTitle: Перемещение материалов
+    copyTitle: Копия перемещения материалов
+    fields:
+      - field: date
+        label: Дата
+        component: DatePicker
+        componentImport: primevue/datepicker
+        autofocus: true
+
+      - field: source_construction_site_id
+        label: Объект-отправитель
+        component: number
+
+      - field: destination_construction_site_id
+        label: Объект-получатель
+        component: number
+
+      - field: comment
+        label: Комментарий
+        component: textarea
+        columnSpan: 2
+
+  list:
+    pageSize: 30
+    columns:
+      - field: id
+        label: ID
+        width: 8rem
+
+      - field: date
+        label: Дата
+        width: 10rem
+
+      - field: source_construction_site_id
+        label: Откуда
+        width: 12rem
+
+      - field: destination_construction_site_id
+        label: Куда
+        width: 12rem
+
+  routes:
+    listName: materialTransfers
+    createName: materialTransferCreate
+    editName: materialTransferEdit
+
+migration:
+  enabled: true
+
+test:
+  enabled: false

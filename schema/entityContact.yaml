@@ -1,0 +1,119 @@
+name: EntityContact
+comment: EntityContact links a contact to an application entity.
+humanName: entity contact
+humanNamePlural: entity contacts
+
+table:
+  schema: public
+  name: entity_contacts
+  comment: Contact assignments to application entities.
+
+route: /entity-contacts
+permissionPrefix: entityContact
+serviceName: EntityContact
+sessionRequired: true
+crudNotifications: true
+
+keys:
+  - name: id
+    pathName: id
+    type: int
+
+fields:
+  - name: id
+    type: int
+    primaryKey: true
+    autoIncrement: true
+    serverGenerated: true
+
+  - name: entity_type
+    type: string
+    required: true
+    maxLen: 250
+    comment: Application entity type.
+
+  - name: entity_id
+    type: int
+    required: true
+    comment: Application entity identifier.
+
+  - name: contact_id
+    type: int
+    required: true
+    references:
+      schema: public
+      table: contacts
+      column: id
+      onDelete: RESTRICT
+      onUpdate: CASCADE
+    comment: Contact reference.
+
+  - name: is_active
+    type: bool
+    required: true
+    dbRequired: true
+    default: "true"
+
+list:
+  model: EntityContactList
+  table:
+    schema: public
+    name: entity_contacts_list
+  fields:
+    - name: id
+      type: int
+      primaryKey: true
+
+    - name: entity_type
+      type: string
+      required: true
+
+    - name: entity_id
+      type: int
+      required: true
+
+    - name: entity
+      type: jsonb
+      goType: "*Ref"
+
+    - name: contact_id
+      type: int
+      required: true
+
+    - name: contact
+      type: jsonb
+      goType: "*Ref"
+      required: true
+
+    - name: contact_attrs
+      type: jsonb
+      goType: "JSONValue"
+      required: true
+
+    - name: is_active
+      type: bool
+      required: true
+
+crud:
+  create: true
+  list: true
+  detail: true
+  update: true
+  delete: true
+
+permissions:
+  enabled: true
+  grantRoles:
+    - admin
+  descriptions:
+    create: Создание связи контакта с объектом
+    list: Просмотр контактов объекта
+    detail: Просмотр связи контакта с объектом
+    update: Изменение связи контакта с объектом
+    delete: Удаление связи контакта с объектом
+
+migration:
+  enabled: false
+
+test:
+  enabled: false

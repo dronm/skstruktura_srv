@@ -1,0 +1,171 @@
+name: Supplier
+comment: Supplier describes an editable supplier reference entry.
+humanName: supplier
+humanNamePlural: suppliers
+
+table:
+  schema: public
+  name: suppliers
+  comment: Supplier reference data.
+  checks:
+    - btrim(name) <> ''
+
+route: /supplier
+permissionPrefix: supplier
+serviceName: Supplier
+sessionRequired: true
+crudNotifications: true
+
+keys:
+  - name: id
+    pathName: id
+    type: int
+
+fields:
+  - name: id
+    type: int
+    primaryKey: true
+    autoIncrement: true
+    serverGenerated: true
+
+  - name: name
+    type: string
+    required: true
+    maxLen: 250
+    comment: Display name of the supplier.
+
+  - name: name_full
+    type: text
+    required: true
+    comment: Full name of the supplier.
+
+  - name: inn
+    type: string
+    maxLen: 12
+    required: true
+    comment: Supplier inn
+
+  - name: kpp
+    type: string
+    maxLen: 10
+    required: false
+    nullable: true
+    comment: Supplier kpp
+
+  - name: is_active
+    type: bool
+    required: true
+    dbRequired: true
+    default: "true"
+
+crud:
+  create: true
+  list: true
+  detail: true
+  update: true
+  delete: true
+
+permissions:
+  enabled: true
+  grantRoles:
+    - admin
+  descriptions:
+    create: Создание поставщика
+    list: Просмотр списка поставщиков
+    detail: Просмотр поставщика
+    update: Изменение поставщика
+    delete: Удаление поставщика
+
+applicationRoute:
+  enabled: true
+  name: suppliers
+  path: /supplier
+  description: Поставщики
+  section: Справочники
+  icon: pi pi-car
+  menuAvailable: true
+
+menu:
+  enabled: true
+  role: admin
+  caption: Поставщики
+  sortOrder: 10
+  parent:
+    caption: Поставщики
+    sortOrder: 40
+    create: true
+
+frontend:
+  scaffold: true
+  title: Поставщики
+  form:
+    columns: 2
+    createTitle: Новый поставщик
+    editTitle: Поставщик
+    copyTitle: Копия поставщик
+    fields:
+      - field: name
+        label: Наименование
+        component: text
+        autofocus: true
+
+      - field: name_full
+        label: Полн. наименование
+        component: text
+        autofocus: false
+
+      - field: inn
+        label: ИНН
+        component: text
+        autofocus: false
+
+      - field: kpp
+        label: КПП
+        component: text
+        autofocus: false
+
+      - field: is_active
+        label: Активна
+        component: checkbox
+        default: true
+
+  list:
+    pageSize: 30
+    columns:
+      - field: id
+        label: ID
+        width: 8rem
+
+      - field: name
+        label: Наименование
+        width: 32rem
+
+      - field: inn
+        label: ИНН
+        width: 8rem
+
+      - field: is_active
+        label: Активна
+        width: 8rem
+
+  routes:
+    listName: suppliers
+    createName: supplierCreate
+    editName: supplierEdit
+
+migration:
+  enabled: true
+  indexes:
+    - name: suppliers_name_idx
+      columns:
+        - lower(name)
+
+    - name: suppliers_inn_idx
+      columns:
+        - inn
+
+# Generated integration tests require full CRUD and concrete values that satisfy
+# all foreign keys in the target database. Enable only after supplying them.
+test:
+  enabled: false
+

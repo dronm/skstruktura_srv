@@ -1,0 +1,150 @@
+name: NotificationTemplate
+comment: NotificationTemplate describes an editable notification template unit reference entry.
+humanName: notification template
+humanNamePlural: notification templates
+
+table:
+  schema: public
+  name: notification_templates
+  comment: Notification template reference data.
+  checks:
+    - btrim(code) <> ''
+
+route: /notification-template
+permissionPrefix: notificationTemplate
+serviceName: NotificationTemplate
+sessionRequired: true
+crudNotifications: true
+
+keys:
+  - name: id
+    pathName: id
+    type: int
+
+fields:
+  - name: id
+    type: int
+    primaryKey: true
+    autoIncrement: true
+    serverGenerated: true
+
+  - name: code
+    type: text
+    required: true
+    maxLen: 250
+    comment: Display name of the notification template.
+
+  - name: event
+    type: text
+    required: true
+    comment: Event name of the template
+
+  - name: body_template
+    type: text
+    required: true
+    comment: Template body
+
+  - name: is_active
+    type: bool
+    required: true
+    dbRequired: true
+    default: "true"
+
+crud:
+  create: true
+  list: true
+  detail: true
+  update: true
+  delete: true
+
+permissions:
+  enabled: true
+  grantRoles:
+    - admin
+  descriptions:
+    create: Создание шаблона уведомления
+    list: Просмотр списка шаблонов уведомления
+    detail: Просмотр шаблона уведомления
+    update: Изменение шаблона уведомления
+    delete: Удаление шаблона уведомления
+
+applicationRoute:
+  enabled: true
+  name: notificationTemplates
+  path: /notification_template
+  description: Шаблоны уведомлений
+  section: Справочники
+  icon: pi pi-megaphone
+  menuAvailable: true
+
+menu:
+  enabled: true
+  role: admin
+  caption: Шаблоны уведомлений
+  sortOrder: 10
+  parent:
+    caption: Шаблоны уведомлений
+    sortOrder: 40
+    create: true
+
+frontend:
+  scaffold: true
+  title: Шаблоны уведомлений
+  form:
+    columns: 2
+    createTitle: Новый шаблон уведомления
+    editTitle: Шаблон уведомления
+    copyTitle: Копия шаблона уведомления
+    fields:
+      - field: code
+        label: Код
+        component: text
+        autofocus: false
+
+      - field: event
+        label: Событие
+        component: text
+        autofocus: false
+
+      - field: body_template
+        label: Шаблон
+        component: text
+        autofocus: false
+
+      - field: is_active
+        label: Активна
+        component: checkbox
+        default: true
+
+  list:
+    pageSize: 30
+    columns:
+      - field: id
+        label: ID
+        width: 8rem
+
+      - field: code
+        label: Код
+        width: 32rem
+
+      - field: is_active
+        label: Активна
+        width: 8rem
+
+  routes:
+    listName: notificationTemplates
+    createName: notificationTemplateCreate
+    editName: notificationTemplateEdit
+
+migration:
+  enabled: true
+  indexes:
+    - name: notification_templates_code_idx
+      columns:
+        - lower(code)
+
+# Generated integration tests require full CRUD and concrete values that satisfy
+# all foreign keys in the target database. Enable only after supplying them.
+test:
+  enabled: false
+

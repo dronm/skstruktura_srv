@@ -1,0 +1,8 @@
+-- SUPERUSER CODE
+CREATE USER skstruktura WITH PASSWORD '';
+CREATE DATABASE skstruktura OWNER skstruktura;
+GRANT ALL PRIVILEGES ON DATABASE skstruktura TO skstruktura;
+GRANT SELECT ON ALL TABLES IN SCHEMA public TO skstruktura;
+CREATE EXTENSION pgcrypto;
+CREATE EXTENSION pg_trgm; 
+

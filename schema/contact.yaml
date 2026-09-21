@@ -1,0 +1,187 @@
+name: Contact
+comment: Contact describes an editable contact reference entry.
+humanName: contact
+humanNamePlural: contacts
+
+table:
+  schema: public
+  name: contacts
+  comment: Contact reference data.
+  checks:
+    - btrim(name) <> ''
+
+route: /contacts
+permissionPrefix: contact
+serviceName: Contact
+sessionRequired: true
+crudNotifications: true
+
+keys:
+  - name: id
+    pathName: id
+    type: int
+
+fields:
+  - name: id
+    type: int
+    primaryKey: true
+    autoIncrement: true
+    serverGenerated: true
+
+  - name: name
+    type: string
+    required: true
+    maxLen: 250
+    comment: Display name of the contact.
+
+  - name: phone
+    type: string
+    required: false
+    maxLen: 11
+    comment: Contact phone
+
+  - name: email
+    type: string
+    required: false
+    nullable: true
+    maxLen: 150
+    comment: Contact email
+
+  - name: employee_post_id
+    type: int
+    required: false
+    nullable: true
+    references:
+      schema: public
+      table: employee_posts
+      column: id
+      onDelete: RESTRICT
+      onUpdate: CASCADE
+    comment: contact post
+
+  - name: is_active
+    type: bool
+    required: true
+    dbRequired: true
+    default: "true"
+
+  - name: search
+    type: text
+    required: false
+    nullable: true
+    serverGenerated: true
+    comment: Trigger calculated contact description
+
+crud:
+  create: true
+  list: true
+  detail: true
+  update: true
+  delete: true
+
+permissions:
+  enabled: true
+  grantRoles:
+    - admin
+  descriptions:
+    create: Создание контакта
+    list: Просмотр списка контактов
+    detail: Просмотр контакта
+    update: Изменение контакта
+    delete: Удаление контакта
+
+applicationRoute:
+  enabled: true
+  name: contacts
+  path: /contacts
+  description: Контакты
+  section: Справочники
+  icon: pi pi-id-card
+  menuAvailable: true
+
+menu:
+  enabled: true
+  role: admin
+  caption: Контакты
+  sortOrder: 10
+  parent:
+    caption: Контакты
+    sortOrder: 40
+    create: true
+
+frontend:
+  scaffold: true
+  title: Контакты
+  form:
+    columns: 2
+    createTitle: Новый контакт
+    editTitle: контакт
+    copyTitle: Копия контакта
+    fields:
+      - field: name
+        label: ФИО
+        component: text
+        autofocus: true
+
+      - field: phone
+        label: Телефон
+        component: text
+        autofocus: true
+
+      - field: email
+        label: Эл.почта
+        component: text
+        autofocus: true
+
+      - field: employee_post_id
+        label: Должность
+        component: EmployeePostReferenceInput
+        componentImport: "@/components/references/EmployeePostReferenceInput.vue"
+        autofocus: false
+
+      - field: is_active
+        label: Активна
+        component: checkbox
+        default: true
+
+  list:
+    pageSize: 30
+    columns:
+      - field: id
+        label: ID
+        width: 8rem
+
+      - field: name
+        label: ФИО
+        width: 32rem
+
+      - field: phone
+        label: Телефон
+        width: 16rem
+
+      - field: email
+        label: Эл.почта
+        width: 16rem
+
+      - field: is_active
+        label: Активна
+        width: 8rem
+
+  routes:
+    listName: contacts
+    createName: contactCreate
+    editName: contactEdit
+
+migration:
+  enabled: true
+  indexes:
+    - name: contacts_phone_idx
+      columns:
+        - phone
+      unique: true
+
+# Generated integration tests require full CRUD and concrete values that satisfy
+# all foreign keys in the target database. Enable only after supplying them.
+test:
+  enabled: false
+

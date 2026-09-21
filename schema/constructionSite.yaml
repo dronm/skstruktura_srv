@@ -1,0 +1,129 @@
+name: ConstructionSite
+comment: ConstructionSite describes an editable construction site reference entry.
+humanName: construction site
+humanNamePlural: construction sites
+
+table:
+  schema: public
+  name: construction_sites
+  comment: Construction site reference data.
+  checks:
+    - btrim(name) <> ''
+
+route: /construction-sites
+permissionPrefix: constructionSite
+serviceName: ConstructionSite
+sessionRequired: true
+crudNotifications: true
+
+keys:
+  - name: id
+    pathName: id
+    type: int
+
+fields:
+  - name: id
+    type: int
+    primaryKey: true
+    autoIncrement: true
+    serverGenerated: true
+
+  - name: name
+    type: string
+    required: true
+    maxLen: 250
+    comment: Display name of the construction site.
+
+  - name: is_active
+    type: bool
+    required: true
+    dbRequired: true
+    default: "true"
+
+crud:
+  create: true
+  list: true
+  detail: true
+  update: true
+  delete: true
+
+permissions:
+  enabled: true
+  grantRoles:
+    - admin
+  descriptions:
+    create: Создание объекта строительства
+    list: Просмотр списка объектов строительства
+    detail: Просмотр объекта строительства
+    update: Изменение объекта строительства
+    delete: Удаление объекта строительства
+
+applicationRoute:
+  enabled: true
+  name: constructionSites
+  path: /construction-sites
+  description: Объекты строительства
+  section: Справочники
+  icon: pi pi-car
+  menuAvailable: true
+
+menu:
+  enabled: true
+  role: admin
+  caption: Объекты строительства
+  sortOrder: 10
+  parent:
+    caption: Объекты 
+    sortOrder: 40
+    create: true
+
+frontend:
+  scaffold: true
+  title: Объекты строительства
+  form:
+    columns: 2
+    createTitle: Новый объект строительства
+    editTitle: объект строительства
+    copyTitle: Копия объект строительства
+    fields:
+      - field: name
+        label: Наименование
+        component: text
+        autofocus: true
+
+      - field: is_active
+        label: Активна
+        component: checkbox
+        default: true
+
+  list:
+    pageSize: 30
+    columns:
+      - field: id
+        label: ID
+        width: 8rem
+
+      - field: name
+        label: Наименование
+        width: 32rem
+
+      - field: is_active
+        label: Активна
+        width: 8rem
+
+  routes:
+    listName: constructionSites
+    createName: constructionSiteCreate
+    editName: constructionSiteEdit
+
+migration:
+  enabled: true
+  indexes:
+    - name: construction_sites_name_idx
+      columns:
+        - lower(name)
+
+# Generated integration tests require full CRUD and concrete values that satisfy
+# all foreign keys in the target database. Enable only after supplying them.
+test:
+  enabled: false

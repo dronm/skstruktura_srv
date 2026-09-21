@@ -1,0 +1,211 @@
+name: MaterialReceiptItem
+comment: MaterialReceiptItem describes a line of a material receipt document.
+humanName: material receipt item
+humanNamePlural: material receipt items
+
+table:
+  schema: public
+  name: material_receipt_items
+  comment: Material receipt document lines.
+  checks:
+    - line_num > 0
+    - quant > 0
+    - price >= 0
+    - amount >= 0
+
+route: /material-receipt-items
+permissionPrefix: materialReceiptItem
+serviceName: MaterialReceiptItem
+sessionRequired: true
+crudNotifications: true
+
+keys:
+  - name: id
+    pathName: id
+    type: int
+
+fields:
+  - name: id
+    type: int
+    primaryKey: true
+    autoIncrement: true
+    serverGenerated: true
+
+  - name: line_num
+    type: int
+    required: true
+    comment: Line number within the document.
+
+  - name: material_receipt_id
+    type: int
+    required: true
+    references:
+      schema: public
+      table: material_receipts
+      column: id
+      onDelete: CASCADE
+      onUpdate: CASCADE
+    comment: Parent material receipt document.
+
+  - name: material_id
+    type: int
+    required: true
+    references:
+      schema: public
+      table: materials
+      column: id
+      onDelete: RESTRICT
+      onUpdate: CASCADE
+    comment: Material.
+
+  - name: measure_unit_id
+    type: int
+    required: true
+    references:
+      schema: public
+      table: measure_units
+      column: id
+      onDelete: RESTRICT
+      onUpdate: CASCADE
+    comment: Measurement unit.
+
+  - name: construction_site_id
+    type: int
+    required: false
+    nullable: true
+    references:
+      schema: public
+      table: construction_sites
+      column: id
+      onDelete: RESTRICT
+      onUpdate: CASCADE
+    comment: Optional line site; when null, use the receipt header site.
+
+  - name: quant
+    type: numeric
+    sqlType: numeric(19, 4)
+    required: true
+    comment: Material quantity.
+
+  - name: price
+    type: numeric
+    sqlType: numeric(19, 6)
+    required: true
+    comment: Unit price.
+
+  - name: amount
+    type: numeric
+    sqlType: numeric(15, 2)
+    required: true
+    comment: Line amount with VAT.
+
+  - name: vat_percent
+    type: numeric
+    sqlType: numeric(5, 2)
+    required: true
+    comment: Line vat percent.
+
+  - name: vat_amount
+    type: numeric
+    sqlType: numeric(15, 2)
+    required: true
+    comment: Line vat amount.
+
+list:
+  model: MaterialReceiptItemList
+  table:
+    schema: public
+    name: material_receipt_items_list
+  fields:
+  - name: id
+    type: int
+    primaryKey: true
+  - name: line_num
+    type: int
+    required: true
+  - name: material_receipt_id
+    type: int
+    required: true
+  - name: material_id
+    type: int
+    required: true
+  - name: measure_unit_id
+    type: int
+    required: true
+  - name: construction_site_id
+    type: int
+    required: false
+    nullable: true
+  - name: quant
+    type: numeric
+    required: true
+  - name: price
+    type: numeric
+    required: true
+  - name: amount
+    type: numeric
+    required: true
+  - name: vat_percent
+    type: numeric
+    required: true
+  - name: vat_amount
+    type: numeric
+    required: true
+  - name: material
+    type: jsonb
+    goType: '*Ref'
+  - name: measure_unit
+    type: jsonb
+    goType: '*Ref'
+  - name: construction_site
+    type: jsonb
+    goType: '*Ref'
+
+crud:
+  create: true
+  list: true
+  detail: true
+  update: true
+  delete: true
+
+service:
+  manualMethods:
+    - detail
+    - create
+    - update
+    - delete
+
+permissions:
+  enabled: true
+  grantRoles:
+    - admin
+  descriptions:
+    create: Создание строки поступления материалов
+    list: Просмотр строк поступления материалов
+    detail: Просмотр строки поступления материалов
+    update: Изменение строки поступления материалов
+    delete: Удаление строки поступления материалов
+
+applicationRoute:
+  enabled: false
+
+menu:
+  enabled: false
+
+# The current public codegen does not expose CollectionGrid editMode in YAML.
+# Keep item entities without standalone pages; use their generated types/API
+# from the parent document's inline item grid.
+frontend:
+  scaffold: false
+
+migration:
+  enabled: true
+  indexes:
+    - name: material_receipt_items_material_receipt_id_line_num_idx
+      columns:
+        - material_receipt_id
+        - line_num
+      unique: true
+
+test:
+  enabled: false
