@@ -9,7 +9,6 @@ import (
 	"github.com/dronm/ds/v4"
 	"github.com/dronm/modelbind"
 	"github.com/dronm/session"
-	"github.com/dronm/skstruktura/internal/apperrors"
 	"github.com/dronm/skstruktura/internal/models"
 	"github.com/dronm/webapp"
 	wmodels "github.com/dronm/webapp/models"
@@ -64,11 +63,7 @@ func (s *MaterialTransferItemService) List(
 }
 
 func (s *MaterialTransferItemService) requireSession() error {
-	if s.Session == nil {
-		return apperrors.SessionRequired()
-	}
-
-	return nil
+	return requireMaterialTransferAdminSession(s.Session, "materialTransferItem")
 }
 
 func (s *MaterialTransferItemService) requireDB() error {

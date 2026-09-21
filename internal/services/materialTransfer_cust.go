@@ -27,43 +27,51 @@ func (s *MaterialTransferService) Create(
 
 	var result *models.MaterialTransferDocument
 	if err := withPrimaryTransaction(ctx, s.DB, func(tx ds.Tx) error {
-		if err := tx.QueryRow(ctx, `
-			INSERT INTO public.material_transfers (
-				date,
-				source_construction_site_id,
-				destination_construction_site_id,
-				comment
-			)
-			VALUES ($1, $2, $3, $4)
-			RETURNING id, version
-		`,
-			document.Date,
-			document.SourceConstructionSiteID,
-			document.DestinationConstructionSiteID,
-			document.Comment,
-		).Scan(&document.ID, &document.Version); err != nil {
-			return err
-		}
-		if err := syncMaterialTransferItems(ctx, tx, document.ID, document.Items); err != nil {
-			return err
-		}
-		if err := rebuildMaterialRegisterActions(
-			ctx,
-			tx,
-			materialTransferRecorderType,
-			document.ID,
-		); err != nil {
-			return err
-		}
-
 		var err error
-		result, err = fetchMaterialTransferDocument(ctx, tx, document.ID)
+		result, err = createMaterialTransferDocument(ctx, tx, document)
 		return err
 	}); err != nil {
 		return nil, fmt.Errorf("create complete material transfer: %w", err)
 	}
 
 	return result, nil
+}
+
+func createMaterialTransferDocument(
+	ctx context.Context,
+	tx ds.Querier,
+	document *models.MaterialTransferDocument,
+) (*models.MaterialTransferDocument, error) {
+	if err := tx.QueryRow(ctx, `
+		INSERT INTO public.material_transfers (
+			date,
+			source_construction_site_id,
+			destination_construction_site_id,
+			comment
+		)
+		VALUES ($1, $2, $3, $4)
+		RETURNING id, version
+	`,
+		document.Date,
+		document.SourceConstructionSiteID,
+		document.DestinationConstructionSiteID,
+		document.Comment,
+	).Scan(&document.ID, &document.Version); err != nil {
+		return nil, err
+	}
+	if err := syncMaterialTransferItems(ctx, tx, document.ID, document.Items); err != nil {
+		return nil, err
+	}
+	if err := rebuildMaterialRegisterActions(
+		ctx,
+		tx,
+		materialTransferRecorderType,
+		document.ID,
+	); err != nil {
+		return nil, err
+	}
+
+	return fetchMaterialTransferDocument(ctx, tx, document.ID)
 }
 
 func (s *MaterialTransferService) Update(
