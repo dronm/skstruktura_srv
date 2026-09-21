@@ -28,6 +28,20 @@ func TestValidateMaterialBalanceInput(t *testing.T) {
 	}
 }
 
+func TestValidateMaterialBalanceInputUsesDefaultPageSize(t *testing.T) {
+	t.Parallel()
+
+	_, params, err := validateMaterialBalanceInput(models.MaterialBalanceInput{
+		Query: &models.MaterialBalanceQuery{ConstructionSiteID: 42},
+	})
+	if err != nil {
+		t.Fatalf("validateMaterialBalanceInput() error = %v", err)
+	}
+	if params.Count != materialBalanceDefaultPageSize {
+		t.Fatalf("collection count = %d, want %d", params.Count, materialBalanceDefaultPageSize)
+	}
+}
+
 func TestValidateMaterialBalanceInputRejectsInvalidValues(t *testing.T) {
 	t.Parallel()
 

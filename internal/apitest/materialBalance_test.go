@@ -49,7 +49,16 @@ func TestMaterialBalanceReport(t *testing.T) {
 	}
 	materialAHighID := createMaterial("balance-a-high-", materialTypeAID)
 	materialALowID := createMaterial("balance-a-low-", materialTypeAID)
+	materialAZeroID := createMaterial("balance-a-zero-", materialTypeAID)
 	materialBID := createMaterial("balance-b-", materialTypeBID)
+	inactiveMaterialID := createAPIObject(t, c, "/api/material", map[string]any{
+		"name":             "balance-inactive-" + suffix,
+		"name_full":        "balance-inactive-" + suffix,
+		"measure_unit_id":  measureUnitID,
+		"material_type_id": materialTypeAID,
+		"is_active":        false,
+	})
+	t.Cleanup(func() { c.DeleteIgnore(t, fmt.Sprintf("/api/material/%d", inactiveMaterialID)) })
 
 	siteID := createAPIObject(t, c, "/api/construction-sites", map[string]any{
 		"name":      "balance-site-" + suffix,
@@ -61,6 +70,11 @@ func TestMaterialBalanceReport(t *testing.T) {
 		"is_active": true,
 	})
 	t.Cleanup(func() { c.DeleteIgnore(t, fmt.Sprintf("/api/construction-sites/%d", otherSiteID)) })
+	inactiveSiteID := createAPIObject(t, c, "/api/construction-sites", map[string]any{
+		"name":      "balance-inactive-site-" + suffix,
+		"is_active": false,
+	})
+	t.Cleanup(func() { c.DeleteIgnore(t, fmt.Sprintf("/api/construction-sites/%d", inactiveSiteID)) })
 
 	managerName := "balance-manager-" + suffix
 	managerPassword := "integration-test-password"
@@ -68,7 +82,7 @@ func TestMaterialBalanceReport(t *testing.T) {
 		"name":                  managerName,
 		"role_id":               "construction_site_manager",
 		"pwd":                   managerPassword,
-		"construction_site_ids": []int{siteID},
+		"construction_site_ids": []int{siteID, inactiveSiteID},
 	})
 	t.Cleanup(func() { c.DeleteIgnore(t, fmt.Sprintf("/api/users/%d", managerID)) })
 
@@ -134,6 +148,41 @@ func TestMaterialBalanceReport(t *testing.T) {
 	if !foundSite {
 		t.Fatalf("construction site %d is missing from material balance selector", siteID)
 	}
+	for _, rawSite := range sites {
+		site, ok := rawSite.(map[string]any)
+		if ok && intJSON(t, site, "id") == inactiveSiteID {
+			t.Fatalf("inactive construction site %d is present in material balance selector", inactiveSiteID)
+		}
+	}
+
+	managerAliasSitesResponse := c.DoJSON(
+		t,
+		http.MethodGet,
+		"/api/construction-manager/sites",
+		nil,
+		http.StatusOK,
+	)
+	managerAliasSites, ok := managerAliasSitesResponse["rows"].([]any)
+	if !ok {
+		t.Fatalf("construction manager site rows type = %T", managerAliasSitesResponse["rows"])
+	}
+	foundSite = false
+	for _, rawSite := range managerAliasSites {
+		site, ok := rawSite.(map[string]any)
+		if !ok {
+			continue
+		}
+		siteIDValue := intJSON(t, site, "id")
+		if siteIDValue == siteID {
+			foundSite = true
+		}
+		if siteIDValue == inactiveSiteID {
+			t.Fatalf("inactive construction site %d is present in construction manager selector", inactiveSiteID)
+		}
+	}
+	if !foundSite {
+		t.Fatalf("construction site %d is missing from construction manager selector", siteID)
+	}
 
 	values := url.Values{"construction_site_id": {fmt.Sprint(siteID)}}
 	response := c.DoJSON(
@@ -164,6 +213,49 @@ func TestMaterialBalanceReport(t *testing.T) {
 		requireJSONNumber(t, row, "balance", wantBalances[index])
 	}
 
+	materialsResponse := c.DoJSON(
+		t,
+		http.MethodGet,
+		"/api/construction-manager/materials?"+values.Encode()+"&count=5000",
+		nil,
+		http.StatusOK,
+	)
+	materialRows, ok := materialsResponse["rows"].([]any)
+	if !ok {
+		t.Fatalf("construction manager material rows type = %T", materialsResponse["rows"])
+	}
+	wantMaterialBalances := map[int]float64{
+		materialAHighID: 10,
+		materialALowID:  5,
+		materialAZeroID: 0,
+		materialBID:     7,
+	}
+	foundMaterialIDs := make(map[int]bool, len(wantMaterialBalances))
+	for _, rawRow := range materialRows {
+		row, ok := rawRow.(map[string]any)
+		if !ok {
+			t.Fatalf("construction manager material row type = %T", rawRow)
+		}
+		materialID := intJSON(t, row, "material_id")
+		if materialID == inactiveMaterialID {
+			t.Fatalf("inactive material %d is present in construction manager materials", inactiveMaterialID)
+		}
+		wantBalance, tracked := wantMaterialBalances[materialID]
+		if !tracked {
+			continue
+		}
+		if got := intJSON(t, row, "construction_site_id"); got != siteID {
+			t.Fatalf("material %d construction_site_id = %d, want %d", materialID, got, siteID)
+		}
+		requireJSONNumber(t, row, "balance", wantBalance)
+		foundMaterialIDs[materialID] = true
+	}
+	for materialID := range wantMaterialBalances {
+		if !foundMaterialIDs[materialID] {
+			t.Errorf("material %d is missing from construction manager materials", materialID)
+		}
+	}
+
 	managerClient := NewClient(t)
 	managerClient.User = managerName
 	managerClient.Pwd = managerPassword
@@ -187,6 +279,24 @@ func TestMaterialBalanceReport(t *testing.T) {
 	if !ok || intJSON(t, managerSite, "id") != siteID {
 		t.Fatalf("manager construction site = %#v, want id %d", managerSites[0], siteID)
 	}
+	managerAliasSitesResponse = managerClient.DoJSON(
+		t,
+		http.MethodGet,
+		"/api/construction-manager/sites",
+		nil,
+		http.StatusOK,
+	)
+	managerAliasSites, ok = managerAliasSitesResponse["rows"].([]any)
+	if !ok {
+		t.Fatalf("manager alias construction site rows type = %T", managerAliasSitesResponse["rows"])
+	}
+	if len(managerAliasSites) != 1 {
+		t.Fatalf("manager alias construction site row count = %d, want 1", len(managerAliasSites))
+	}
+	managerSite, ok = managerAliasSites[0].(map[string]any)
+	if !ok || intJSON(t, managerSite, "id") != siteID {
+		t.Fatalf("manager alias construction site = %#v, want id %d", managerAliasSites[0], siteID)
+	}
 
 	managerClient.DoJSON(
 		t,
@@ -199,6 +309,27 @@ func TestMaterialBalanceReport(t *testing.T) {
 		t,
 		http.MethodGet,
 		"/api/reports/material-balance?construction_site_id="+fmt.Sprint(otherSiteID),
+		nil,
+		http.StatusForbidden,
+	)
+	managerClient.DoJSON(
+		t,
+		http.MethodGet,
+		"/api/construction-manager/materials?construction_site_id="+fmt.Sprint(siteID),
+		nil,
+		http.StatusOK,
+	)
+	managerClient.DoJSON(
+		t,
+		http.MethodGet,
+		"/api/construction-manager/materials?construction_site_id="+fmt.Sprint(otherSiteID),
+		nil,
+		http.StatusForbidden,
+	)
+	managerClient.DoJSON(
+		t,
+		http.MethodGet,
+		"/api/construction-manager/materials?construction_site_id="+fmt.Sprint(inactiveSiteID),
 		nil,
 		http.StatusForbidden,
 	)

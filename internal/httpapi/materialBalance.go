@@ -23,6 +23,21 @@ func materialBalanceRoutes(api *webapp.Group) {
 		webapp.WithPermission("materialBalance.list"),
 		webapp.WithService("MaterialBalance", "ConstructionSites"),
 	)
+
+	api.GET(
+		"/construction-manager/sites",
+		webapp.WithName("constructionManager.sites"),
+		webapp.WithPermission("materialBalance.list"),
+		webapp.WithService("MaterialBalance", "ConstructionSites"),
+	)
+
+	api.GET(
+		"/construction-manager/materials",
+		webapp.WithName("constructionManager.materials"),
+		webapp.WithPermission("materialRequest.create"),
+		webapp.WithService("MaterialBalance", "Materials"),
+		webapp.WithBinder(materialBalanceBinder()),
+	)
 }
 
 func materialBalanceBinder() webapp.Binder {

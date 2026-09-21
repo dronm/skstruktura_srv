@@ -168,7 +168,7 @@ func (s *MaterialBalanceService) ConstructionSites(
 	query := `
 		SELECT site.id, site.name
 		FROM public.construction_sites AS site
-		WHERE true
+		WHERE site.is_active
 	`
 	args := make([]any, 0, 1)
 	if user.RoleID == models.RoleIDConstructionSiteManager {
@@ -215,6 +215,136 @@ func (s *MaterialBalanceService) ConstructionSites(
 		)
 	}
 	result.Total = int64(len(result.Rows))
+
+	return result, nil
+}
+
+func (s *MaterialBalanceService) Materials(
+	ctx context.Context,
+	input models.MaterialBalanceInput,
+) (models.MaterialBalanceResponse, error) {
+	user, err := s.currentUser()
+	if err != nil {
+		return models.MaterialBalanceResponse{}, err
+	}
+	if s.DB == nil {
+		return models.MaterialBalanceResponse{}, webapp.Internal("database is not initialized", nil)
+	}
+
+	query, params, err := validateMaterialBalanceInput(input)
+	if err != nil {
+		return models.MaterialBalanceResponse{}, err
+	}
+	poolConn, connID, err := s.DB.GetPrimary(ctx)
+	if err != nil {
+		return models.MaterialBalanceResponse{}, fmt.Errorf(
+			"get primary connection for construction manager materials: %w",
+			err,
+		)
+	}
+	defer s.DB.Release(poolConn, connID)
+
+	db := poolConn.Conn()
+	available, err := materialBalanceSiteAvailable(
+		ctx,
+		db,
+		user,
+		query.ConstructionSiteID,
+	)
+	if err != nil {
+		return models.MaterialBalanceResponse{}, err
+	}
+	if !available {
+		return models.MaterialBalanceResponse{}, webapp.Forbidden(
+			"construction site is not available to the current user",
+			map[string]any{
+				"code":                 apperrors.CodeForbidden,
+				"construction_site_id": query.ConstructionSiteID,
+			},
+		)
+	}
+
+	result := models.MaterialBalanceResponse{
+		Rows:        make([]*models.MaterialBalanceRow, 0),
+		GeneratedAt: time.Now().UTC(),
+	}
+	if err := db.QueryRow(ctx, `
+		SELECT COUNT(*)::bigint
+		FROM public.materials AS material
+		WHERE material.is_active
+	`).Scan(&result.Total); err != nil {
+		return models.MaterialBalanceResponse{}, fmt.Errorf(
+			"count construction manager materials: %w",
+			err,
+		)
+	}
+
+	rows, err := db.Query(ctx, `
+		SELECT
+			material.id,
+			site.id,
+			public.construction_sites_ref(site),
+			material.material_type_id,
+			public.material_types_ref(material_type),
+			material.id,
+			public.materials_ref(material),
+			material.measure_unit_id,
+			public.measure_units_ref(measure_unit),
+			COALESCE(balance.quant, 0)::double precision
+		FROM public.materials AS material
+		JOIN public.material_types AS material_type
+			ON material_type.id = material.material_type_id
+		JOIN public.measure_units AS measure_unit
+			ON measure_unit.id = material.measure_unit_id
+		JOIN public.construction_sites AS site
+			ON site.id = $1
+		LEFT JOIN public.rg_materials_current AS balance
+			ON balance.construction_site_id = site.id
+			AND balance.material_id = material.id
+		WHERE material.is_active
+		ORDER BY
+			lower(material_type.name),
+			material_type.id,
+			COALESCE(balance.quant, 0) DESC,
+			lower(material.name),
+			material.id
+		LIMIT $2 OFFSET $3
+	`, query.ConstructionSiteID, int(params.Count), int(params.From))
+	if err != nil {
+		return models.MaterialBalanceResponse{}, fmt.Errorf(
+			"select construction manager materials: %w",
+			err,
+		)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		row := &models.MaterialBalanceRow{}
+		if err := rows.Scan(
+			&row.ID,
+			&row.ConstructionSiteID,
+			&row.ConstructionSite,
+			&row.MaterialTypeID,
+			&row.MaterialType,
+			&row.MaterialID,
+			&row.Material,
+			&row.MeasureUnitID,
+			&row.MeasureUnit,
+			&row.Balance,
+		); err != nil {
+			return models.MaterialBalanceResponse{}, fmt.Errorf(
+				"scan construction manager material: %w",
+				err,
+			)
+		}
+		result.Rows = append(result.Rows, row)
+	}
+	if err := rows.Err(); err != nil {
+		return models.MaterialBalanceResponse{}, fmt.Errorf(
+			"iterate construction manager materials: %w",
+			err,
+		)
+	}
 
 	return result, nil
 }
@@ -283,6 +413,7 @@ func materialBalanceSiteAvailable(
 			SELECT 1
 			FROM public.construction_sites AS site
 			WHERE site.id = $1
+				AND site.is_active
 	`
 	args := []any{constructionSiteID}
 	if user.RoleID == models.RoleIDConstructionSiteManager {
