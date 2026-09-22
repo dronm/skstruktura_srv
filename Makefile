@@ -12,6 +12,7 @@ MAX_BUILD_OUTPUT := $(ROOT_DIR)$(APP_NAME)-max
 API_BASE_URL ?= http://127.0.0.1:59000
 API_USER ?= admin
 API_PWD ?= 123456
+API_TEST_DB_CONN ?= $(DB_CONN)
 
 -include $(ROOT_DIR).env
 
@@ -73,6 +74,7 @@ test-integration:
 	@API_BASE_URL="$(API_BASE_URL)" \
 		API_USER="$(API_USER)" \
 		API_PWD="$(API_PWD)" \
+		API_TEST_DB_CONN="$(API_TEST_DB_CONN)" \
 		go -C "$(ROOT_DIR)" test \
 			./internal/apitest \
 			-tags=integration \
@@ -197,4 +199,3 @@ codegen:
 # make migfix 15
 %:
 	@:
-

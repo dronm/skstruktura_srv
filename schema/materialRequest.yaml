@@ -72,6 +72,20 @@ fields:
     default: "1"
     comment: Optimistic concurrency version.
 
+  - name: status_id
+    type: int
+    required: true
+    dbRequired: true
+    serverGenerated: true
+    default: "1"
+    references:
+      schema: public
+      table: material_request_statuses
+      column: id
+      onDelete: RESTRICT
+      onUpdate: CASCADE
+    comment: Request workflow status maintained from the statuses of its lines.
+
 list:
   model: MaterialRequestList
   table:
@@ -109,6 +123,15 @@ list:
       required: true
 
     - name: construction_manager
+      type: jsonb
+      goType: "*Ref"
+      required: true
+
+    - name: status_id
+      type: int
+      required: true
+
+    - name: status
       type: jsonb
       goType: "*Ref"
       required: true
@@ -215,13 +238,23 @@ frontend:
           field: construction_manager
         sortField: "construction_manager->>'descr'"
 
+      - field: status_id
+        label: Статус
+        width: 14rem
+        reference:
+          name: materialRequestStatusReference
+          import: "@/references/inventoryReferences"
+          field: status
+        sortField: "status->>'descr'"
+
   routes:
     listName: materialRequests
     createName: materialRequestCreate
     editName: materialRequestEdit
 
+# Migration 000047_material_requests owns this table and its indexes.
 migration:
-  enabled: true
+  enabled: false
   indexes:
     - name: material_requests_construction_site_id_idx
       columns:
@@ -234,6 +267,10 @@ migration:
     - name: material_requests_date_idx
       columns:
         - date
+      unique: false
+    - name: material_requests_status_id_idx
+      columns:
+        - status_id
       unique: false
 
 test:

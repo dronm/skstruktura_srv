@@ -223,8 +223,9 @@ menu:
 frontend:
   scaffold: false
 
+# Migration 000047_material_requests owns this table and its indexes.
 migration:
-  enabled: true
+  enabled: false
   indexes:
     - name: material_request_items_request_line_idx
       columns:

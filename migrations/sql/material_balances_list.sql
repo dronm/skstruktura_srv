@@ -25,4 +25,3 @@ WHERE balance.quant <> 0;
 
 COMMENT ON VIEW public.material_balances_list IS
 	'Current non-zero material balances with material-type grouping metadata.';
-

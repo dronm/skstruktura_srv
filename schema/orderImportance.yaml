@@ -120,8 +120,9 @@ frontend:
     createName: orderImportanceCreate
     editName: orderImportanceEdit
 
+# Migration 000047_material_requests owns this table and its indexes.
 migration:
-  enabled: true
+  enabled: false
   indexes:
     - name: order_importances_name_idx
       columns:

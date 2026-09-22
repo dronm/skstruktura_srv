@@ -87,11 +87,11 @@ func TestMaterialRequestLifecycle(t *testing.T) {
 		"comment":                 nil,
 		"items": []map[string]any{
 			{
-				"material_id":        materialID,
-				"measure_unit_id":    measureUnitID,
-				"quant":              2.5,
-				"supplier_id":        nil,
-				"required_date":      nil,
+				"material_id":         materialID,
+				"measure_unit_id":     measureUnitID,
+				"quant":               2.5,
+				"supplier_id":         nil,
+				"required_date":       nil,
 				"order_importance_id": importanceID,
 			},
 		},
@@ -117,10 +117,13 @@ func TestMaterialRequestLifecycle(t *testing.T) {
 	)
 	requestID := intJSON(t, created, "id")
 	t.Cleanup(func() {
-		c.DeleteIgnore(t, fmt.Sprintf("/api/material-requests/%d", requestID))
+		deleteMaterialRequestFixture(t, requestID, suffix)
 	})
 	if version := intJSON(t, created, "version"); version != 1 {
 		t.Fatalf("created version = %d, want 1", version)
+	}
+	if statusID := intJSON(t, created, "status_id"); statusID != 1 {
+		t.Fatalf("created header status_id = %d, want draft status id 1", statusID)
 	}
 	createdItems := materialDocumentItems(t, created)
 	if len(createdItems) != 1 {
@@ -147,6 +150,9 @@ func TestMaterialRequestLifecycle(t *testing.T) {
 	if version := intJSON(t, submitted, "version"); version != 2 {
 		t.Fatalf("submitted version = %d, want 2", version)
 	}
+	if statusID := intJSON(t, submitted, "status_id"); statusID != 2 {
+		t.Fatalf("submitted header status_id = %d, want submitted status id 2", statusID)
+	}
 	submittedItems := materialDocumentItems(t, submitted)
 	if len(submittedItems) != 1 {
 		t.Fatalf("submitted item count = %d, want 1", len(submittedItems))
@@ -154,6 +160,14 @@ func TestMaterialRequestLifecycle(t *testing.T) {
 	if statusID := intJSON(t, submittedItems[0], "status_id"); statusID != 2 {
 		t.Fatalf("submitted status_id = %d, want submitted status id 2", statusID)
 	}
+
+	c.DoJSON(
+		t,
+		http.MethodDelete,
+		fmt.Sprintf("/api/material-requests/%d", requestID),
+		nil,
+		http.StatusConflict,
+	)
 
 	c.DoJSON(
 		t,

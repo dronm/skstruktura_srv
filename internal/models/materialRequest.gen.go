@@ -24,6 +24,8 @@ type MaterialRequest struct {
 	Comment *string `json:"comment"`
 	// Optimistic concurrency version.
 	Version int `json:"version" required:"true" srvCalc:"true"`
+	// Request workflow status maintained from the statuses of its lines.
+	StatusID int `json:"status_id" required:"true" srvCalc:"true"`
 }
 
 func (m MaterialRequest) Relation() string {
@@ -46,6 +48,8 @@ type MaterialRequestList struct {
 	Version               int       `json:"version" required:"true"`
 	ConstructionSite      *Ref      `json:"construction_site" required:"true"`
 	ConstructionManager   *Ref      `json:"construction_manager" required:"true"`
+	StatusID              int       `json:"status_id" required:"true"`
+	Status                *Ref      `json:"status" required:"true"`
 }
 
 func (m MaterialRequestList) Relation() string {

@@ -1,0 +1,145 @@
+name: MaterialRequestSupplierAssignment
+comment: MaterialRequestSupplierAssignment records a supply manager's supplier assignments for submitted material request lines.
+humanName: material request supplier assignment
+humanNamePlural: material request supplier assignments
+
+table:
+  schema: public
+  name: material_request_supplier_assignments
+  comment: Documents that record supplier assignments made by supply managers.
+  checks:
+    - version > 0
+
+route: /material-request-supplier-assignments
+permissionPrefix: materialRequestSupplierAssignment
+serviceName: MaterialRequestSupplierAssignment
+sessionRequired: true
+crudNotifications: true
+
+keys:
+  - name: id
+    pathName: id
+    type: int
+
+fields:
+  - name: id
+    type: int
+    primaryKey: true
+    autoIncrement: true
+    serverGenerated: true
+
+  - name: date
+    type: timestamptz
+    required: true
+    dbRequired: true
+    default: "now()"
+    comment: Date and time when the supplier assignments were submitted.
+
+  - name: supply_manager_id
+    type: int
+    required: true
+    serverGenerated: true
+    references:
+      schema: public
+      table: users
+      column: id
+      onDelete: RESTRICT
+      onUpdate: CASCADE
+    comment: Supply manager who submitted the supplier assignments.
+
+  - name: comment
+    type: text
+    required: false
+    nullable: true
+    comment: Optional document comment.
+
+  - name: version
+    type: int
+    sqlType: bigint
+    required: true
+    dbRequired: true
+    serverGenerated: true
+    default: "1"
+    comment: Optimistic concurrency version.
+
+list:
+  model: MaterialRequestSupplierAssignmentList
+  table:
+    schema: public
+    name: material_request_supplier_assignments_list
+  fields:
+    - name: id
+      type: int
+      primaryKey: true
+
+    - name: date
+      type: timestamptz
+      required: true
+
+    - name: supply_manager_id
+      type: int
+      required: true
+
+    - name: comment
+      type: text
+      required: false
+      nullable: true
+
+    - name: version
+      type: int
+      required: true
+
+    - name: supply_manager
+      type: jsonb
+      goType: "*Ref"
+      required: true
+
+crud:
+  create: true
+  list: true
+  detail: true
+  update: false
+  delete: false
+
+# Assignment documents are immutable aggregates. The supply-manager workspace
+# provides the scoped create, list, and detail implementations and replaces the
+# generated routes so site ownership can be checked for every operation.
+service:
+  manualMethods:
+    - create
+    - list
+    - detail
+
+permissions:
+  enabled: true
+  grantRoles:
+    - admin
+    - supply_manager
+  descriptions:
+    create: Создание назначения поставщиков по заявкам на материалы
+    list: Просмотр назначений поставщиков по заявкам на материалы
+    detail: Просмотр назначения поставщиков по заявке на материалы
+
+applicationRoute:
+  enabled: false
+
+menu:
+  enabled: false
+
+frontend:
+  scaffold: false
+
+# The workflow migration also adds the supplier_assigned status, creates both
+# assignment tables and their list views, and grants the custom workspace
+# permissions. Keep that atomic migration hand-written.
+migration:
+  enabled: false
+  indexes:
+    - name: material_request_supplier_assignments_manager_date_idx
+      columns:
+        - supply_manager_id
+        - date
+      unique: false
+
+test:
+  enabled: false

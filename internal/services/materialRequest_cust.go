@@ -80,19 +80,47 @@ func (s *MaterialRequestService) Update(
 	var result *models.MaterialRequestDocument
 	if err := withPrimaryTransaction(ctx, s.DB, func(tx ds.Tx) error {
 		var currentVersion int64
+		var currentStatus string
 		if err := tx.QueryRow(ctx, `
-			SELECT version
-			FROM public.material_requests
-			WHERE id = $1
-			FOR UPDATE
-		`, document.ID).Scan(&currentVersion); err != nil {
+			SELECT request.version, status.code
+			FROM public.material_requests AS request
+			JOIN public.material_request_statuses AS status
+				ON status.id = request.status_id
+			WHERE request.id = $1
+			FOR UPDATE OF request
+		`, document.ID).Scan(&currentVersion, &currentStatus); err != nil {
 			if errors.Is(err, ds.ErrNoRows) {
 				return webapp.NotFound("material request not found", map[string]any{"id": document.ID})
 			}
 			return err
 		}
+		if currentStatus != models.MaterialRequestStatusCodeDraft {
+			return materialRequestNotDraftConflict(document.ID, currentStatus, "updated")
+		}
 		if currentVersion != document.Version {
 			return materialRequestVersionConflict(document.ID, document.Version, currentVersion)
+		}
+		draftStatusID, err := materialRequestStatusID(ctx, tx, models.MaterialRequestStatusCodeDraft)
+		if err != nil {
+			return err
+		}
+		for index, item := range document.Items {
+			if item.SupplierID != nil {
+				return invalidMaterialDocumentItem(
+					index,
+					"supplier_id is managed by the supply manager workspace",
+				)
+			}
+			if item.ID == 0 {
+				item.StatusID = draftStatusID
+				continue
+			}
+			if item.StatusID != draftStatusID {
+				return invalidMaterialDocumentItem(
+					index,
+					"status_id is managed by the material request workflow",
+				)
+			}
 		}
 		if err := prepareMaterialRequestReferences(ctx, tx, document); err != nil {
 			return err
@@ -121,7 +149,6 @@ func (s *MaterialRequestService) Update(
 			return err
 		}
 
-		var err error
 		result, err = fetchMaterialRequestDocument(ctx, tx, document.ID)
 		return err
 	}); err != nil {
@@ -200,7 +227,7 @@ func (s *MaterialRequestService) Submit(
 		if err != nil {
 			return err
 		}
-		submittedStatusID, err := materialRequestStatusID(ctx, tx, models.MaterialRequestStatusCodeSubmitted)
+		newStatusID, err := materialRequestStatusID(ctx, tx, models.MaterialRequestStatusCodeNew)
 		if err != nil {
 			return err
 		}
@@ -237,15 +264,17 @@ func (s *MaterialRequestService) Submit(
 			SET status_id = $2
 			WHERE material_request_id = $1
 				AND status_id = $3
-		`, input.ID, submittedStatusID, draftStatusID); err != nil {
+		`, input.ID, newStatusID, draftStatusID); err != nil {
 			return err
 		}
 		if err := tx.QueryRow(ctx, `
 			UPDATE public.material_requests
-			SET version = version + 1
+			SET
+				status_id = $2,
+				version = version + 1
 			WHERE id = $1
 			RETURNING version
-		`, input.ID).Scan(&currentVersion); err != nil {
+		`, input.ID, newStatusID).Scan(&currentVersion); err != nil {
 			return err
 		}
 
@@ -274,6 +303,24 @@ func (s *MaterialRequestService) Delete(
 
 	var rowsAffected int64
 	if err := withPrimaryTransaction(ctx, s.DB, func(tx ds.Tx) error {
+		var currentStatus string
+		if err := tx.QueryRow(ctx, `
+			SELECT status.code
+			FROM public.material_requests AS request
+			JOIN public.material_request_statuses AS status
+				ON status.id = request.status_id
+			WHERE request.id = $1
+			FOR UPDATE OF request
+		`, id).Scan(&currentStatus); err != nil {
+			if errors.Is(err, ds.ErrNoRows) {
+				return webapp.NotFound("material request not found", map[string]any{"id": id})
+			}
+			return err
+		}
+		if currentStatus != models.MaterialRequestStatusCodeDraft {
+			return materialRequestNotDraftConflict(id, currentStatus, "deleted")
+		}
+
 		result, err := tx.Exec(ctx, "DELETE FROM public.material_requests WHERE id = $1", id)
 		if err != nil {
 			return err
@@ -300,6 +347,16 @@ func materialRequestVersionConflict(id int, expected int64, current int64) error
 			"id":               id,
 			"expected_version": expected,
 			"current_version":  current,
+		},
+	)
+}
+
+func materialRequestNotDraftConflict(id int, status string, operation string) error {
+	return webapp.Conflict(
+		fmt.Sprintf("only a draft material request can be %s", operation),
+		map[string]any{
+			"id":          id,
+			"status_code": status,
 		},
 	)
 }

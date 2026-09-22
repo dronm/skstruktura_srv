@@ -24,6 +24,7 @@ func BuildRoutes(diadocManagers ...*diadoc.Manager) []webapp.Route {
 
 	registerGeneratedRoutes(&api)
 	routes = removeReplacedMaterialDocumentRoutes(routes)
+	routes = removeGeneratedSupplyManagerAssignmentRoutes(routes)
 	materialDocumentRoutes(&api)
 
 	mainMenuRoutes(&api)
@@ -34,6 +35,7 @@ func BuildRoutes(diadocManagers ...*diadoc.Manager) []webapp.Route {
 	constructionManagerMaterialConsumptionRoutes(&api)
 	constructionManagerMaterialTransferRoutes(&api)
 	constructionManagerMaterialStatusRoutes(&api)
+	supplyManagerWorkspaceRoutes(&api)
 	objectHistoryRoutes(&api)
 
 	progAboutRoutes(&api)

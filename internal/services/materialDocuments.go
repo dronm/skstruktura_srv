@@ -203,8 +203,11 @@ func validateMaterialRequestDocument(document *models.MaterialRequestDocument, c
 		if item.Quant <= 0 {
 			return invalidMaterialDocumentItem(index, "quant should be greater than zero")
 		}
-		if item.SupplierID != nil && *item.SupplierID <= 0 {
-			return invalidMaterialDocumentItem(index, "supplier_id should be positive when provided")
+		if create && item.SupplierID != nil {
+			return invalidMaterialDocumentItem(
+				index,
+				"supplier_id is managed by the supply manager workspace",
+			)
 		}
 		if item.RequiredDate != nil {
 			if _, err := time.Parse(time.DateOnly, item.RequiredDate.String()); err != nil {
@@ -608,6 +611,8 @@ func fetchMaterialRequestDocument(
 			request.construction_site_id,
 			request.construction_manager_id,
 			request.comment,
+			request.status_id,
+			request.status,
 			item.id,
 			item.line_num,
 			item.material_id,
@@ -641,11 +646,12 @@ func fetchMaterialRequestDocument(
 		var version int64
 		var date time.Time
 		var comment *string
+		var requestStatusID int
 		var itemID, lineNum, materialID, measureUnitID, orderImportanceID, statusID *int
 		var supplierID *int
 		var requiredDate *string
 		var quant *float64
-		var constructionSiteRef, constructionManagerRef *models.Ref
+		var constructionSiteRef, constructionManagerRef, requestStatusRef *models.Ref
 		var itemMaterial, itemMeasureUnit, itemSupplier, itemOrderImportance, itemStatus *models.Ref
 		if err := rows.Scan(
 			&documentID,
@@ -654,6 +660,8 @@ func fetchMaterialRequestDocument(
 			&constructionSiteID,
 			&constructionManagerID,
 			&comment,
+			&requestStatusID,
+			&requestStatusRef,
 			&itemID,
 			&lineNum,
 			&materialID,
@@ -681,9 +689,11 @@ func fetchMaterialRequestDocument(
 				ConstructionSiteID:    constructionSiteID,
 				ConstructionManagerID: constructionManagerID,
 				Comment:               comment,
+				StatusID:              requestStatusID,
 				Items:                 make([]*models.MaterialRequestDocumentItem, 0),
 				ConstructionSite:      constructionSiteRef,
 				ConstructionManager:   constructionManagerRef,
+				Status:                requestStatusRef,
 			}
 		}
 		if itemID == nil {

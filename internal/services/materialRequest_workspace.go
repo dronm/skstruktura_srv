@@ -81,7 +81,9 @@ func (s *MaterialRequestService) ConstructionManagerList(
 			comment,
 			version,
 			construction_site,
-			construction_manager
+			construction_manager,
+			status_id,
+			status
 		FROM public.material_requests_list
 		WHERE construction_site_id = $1
 		ORDER BY date DESC, id DESC
@@ -110,6 +112,8 @@ func (s *MaterialRequestService) ConstructionManagerList(
 			&row.Version,
 			&row.ConstructionSite,
 			&row.ConstructionManager,
+			&row.StatusID,
+			&row.Status,
 		); err != nil {
 			return wmodels.CollectionResponse[*models.MaterialRequestList]{}, fmt.Errorf(
 				"scan construction manager material request: %w",

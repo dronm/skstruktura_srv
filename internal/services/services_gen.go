@@ -15,6 +15,8 @@ func RegisterGeneratedServices() {
 	RegisterMaterialRequestService()
 	RegisterMaterialRequestItemService()
 	RegisterMaterialRequestStatusService()
+	RegisterMaterialRequestSupplierAssignmentService()
+	RegisterMaterialRequestSupplierAssignmentItemService()
 	RegisterMaterialStatusService()
 	RegisterMaterialTransferService()
 	RegisterMaterialTransferItemService()

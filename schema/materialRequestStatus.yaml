@@ -10,7 +10,7 @@ table:
   checks:
     - btrim(code) <> ''
     - btrim(name) <> ''
-    - code IN ('draft', 'submitted', 'in_progress', 'completed', 'cancelled')
+    - code IN ('draft', 'new', 'supplier_assigned', 'ordered', 'fulfilled', 'cancelled')
 
 route: /material-request-statuses
 permissionPrefix: materialRequestStatus
@@ -106,8 +106,9 @@ frontend:
     createName: materialRequestStatusCreate
     editName: materialRequestStatusEdit
 
+# Migration 000047_material_requests owns this table and its indexes.
 migration:
-  enabled: true
+  enabled: false
   indexes:
     - name: material_request_statuses_code_idx
       columns:

@@ -1,10 +1,12 @@
 package services
 
 import (
+	"errors"
 	"testing"
 	"time"
 
 	"github.com/dronm/skstruktura/internal/models"
+	"github.com/dronm/webapp"
 )
 
 func TestValidateMaterialRequestDocumentAllowsNullableLineFields(t *testing.T) {
@@ -88,6 +90,13 @@ func TestValidateMaterialRequestDocumentRejectsInvalidFields(t *testing.T) {
 			},
 		},
 		{
+			name: "supplier managed by supply manager",
+			mutate: func(document *models.MaterialRequestDocument) {
+				supplierID := 71
+				document.Items[0].SupplierID = &supplierID
+			},
+		},
+		{
 			name: "invalid required date",
 			mutate: func(document *models.MaterialRequestDocument) {
 				invalidDate := models.DateOnly("2026-02-30")
@@ -154,5 +163,22 @@ func validMaterialRequestDocument() *models.MaterialRequestDocument {
 				OrderImportanceID: 50,
 			},
 		},
+	}
+}
+
+func TestMaterialRequestNotDraftConflict(t *testing.T) {
+	t.Parallel()
+
+	err := materialRequestNotDraftConflict(
+		17,
+		models.MaterialRequestStatusCodeNew,
+		"updated",
+	)
+	var appErr *webapp.AppError
+	if !errors.As(err, &appErr) {
+		t.Fatalf("error type = %T, want *webapp.AppError", err)
+	}
+	if appErr.StatusCode() != 409 {
+		t.Fatalf("status code = %d, want 409", appErr.StatusCode())
 	}
 }

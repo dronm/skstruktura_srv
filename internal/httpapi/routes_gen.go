@@ -17,6 +17,8 @@ func registerGeneratedRoutes(api *webapp.Group) {
 	materialRequestRoutes(api)
 	materialRequestItemRoutes(api)
 	materialRequestStatusRoutes(api)
+	materialRequestSupplierAssignmentRoutes(api)
+	materialRequestSupplierAssignmentItemRoutes(api)
 	materialStatusRoutes(api)
 	materialTransferRoutes(api)
 	materialTransferItemRoutes(api)

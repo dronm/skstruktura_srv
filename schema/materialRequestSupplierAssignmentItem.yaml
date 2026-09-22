@@ -1,0 +1,145 @@
+name: MaterialRequestSupplierAssignmentItem
+comment: MaterialRequestSupplierAssignmentItem records the supplier selected for one material request line.
+humanName: material request supplier assignment item
+humanNamePlural: material request supplier assignment items
+
+table:
+  schema: public
+  name: material_request_supplier_assignment_items
+  comment: Lines of a material request supplier assignment document.
+  checks:
+    - line_num > 0
+
+route: /material-request-supplier-assignment-items
+permissionPrefix: materialRequestSupplierAssignmentItem
+serviceName: MaterialRequestSupplierAssignmentItem
+sessionRequired: true
+crudNotifications: false
+
+keys:
+  - name: id
+    pathName: id
+    type: int
+
+fields:
+  - name: id
+    type: int
+    primaryKey: true
+    autoIncrement: true
+    serverGenerated: true
+
+  - name: line_num
+    type: int
+    required: true
+    comment: Line number within the supplier assignment document.
+
+  - name: material_request_supplier_assignment_id
+    type: int
+    required: true
+    references:
+      schema: public
+      table: material_request_supplier_assignments
+      column: id
+      onDelete: CASCADE
+      onUpdate: CASCADE
+    comment: Parent supplier assignment document.
+
+  - name: material_request_item_id
+    type: int
+    required: true
+    references:
+      schema: public
+      table: material_request_items
+      column: id
+      onDelete: RESTRICT
+      onUpdate: CASCADE
+    comment: Material request line receiving a supplier assignment.
+
+  - name: supplier_id
+    type: int
+    required: true
+    references:
+      schema: public
+      table: suppliers
+      column: id
+      onDelete: RESTRICT
+      onUpdate: CASCADE
+    comment: Supplier selected for the material request line.
+
+list:
+  model: MaterialRequestSupplierAssignmentItemList
+  table:
+    schema: public
+    name: material_request_supplier_assignment_items_list
+  fields:
+    - name: id
+      type: int
+      primaryKey: true
+
+    - name: line_num
+      type: int
+      required: true
+
+    - name: material_request_supplier_assignment_id
+      type: int
+      required: true
+
+    - name: material_request_item_id
+      type: int
+      required: true
+
+    - name: supplier_id
+      type: int
+      required: true
+
+    - name: supplier
+      type: jsonb
+      goType: "*Ref"
+      required: true
+
+crud:
+  create: false
+  list: true
+  detail: true
+  update: false
+  delete: false
+
+permissions:
+  enabled: true
+  grantRoles:
+    - admin
+  descriptions:
+    list: Просмотр строк назначения поставщиков по заявкам на материалы
+    detail: Просмотр строки назначения поставщика по заявке на материалы
+
+applicationRoute:
+  enabled: false
+
+menu:
+  enabled: false
+
+frontend:
+  scaffold: false
+
+# The parent workflow migration owns both assignment tables and list views.
+migration:
+  enabled: false
+  indexes:
+    - name: material_request_supplier_assignment_items_assignment_line_idx
+      columns:
+        - material_request_supplier_assignment_id
+        - line_num
+      unique: true
+
+    - name: material_request_supplier_assignment_items_request_item_idx
+      columns:
+        - material_request_item_id
+      unique: true
+
+    - name: material_request_supplier_assignment_items_supplier_id_idx
+      columns:
+        - supplier_id
+      unique: false
+
+test:
+  enabled: false

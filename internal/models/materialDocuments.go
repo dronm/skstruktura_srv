@@ -94,11 +94,12 @@ type UpdateMaterialTransferDocumentRequest struct {
 }
 
 const (
-	MaterialRequestStatusCodeDraft      = "draft"
-	MaterialRequestStatusCodeSubmitted  = "submitted"
-	MaterialRequestStatusCodeInProgress = "in_progress"
-	MaterialRequestStatusCodeCompleted  = "completed"
-	MaterialRequestStatusCodeCancelled  = "cancelled"
+	MaterialRequestStatusCodeDraft            = "draft"
+	MaterialRequestStatusCodeNew              = "new"
+	MaterialRequestStatusCodeSupplierAssigned = "supplier_assigned"
+	MaterialRequestStatusCodeOrdered          = "ordered"
+	MaterialRequestStatusCodeFulfilled        = "fulfilled"
+	MaterialRequestStatusCodeCancelled        = "cancelled"
 )
 
 // MaterialRequestDocument is a request from a construction-site manager for
@@ -111,9 +112,11 @@ type MaterialRequestDocument struct {
 	ConstructionSiteID    int                            `json:"construction_site_id"`
 	ConstructionManagerID int                            `json:"construction_manager_id"`
 	Comment               *string                        `json:"comment"`
+	StatusID              int                            `json:"status_id"`
 	Items                 []*MaterialRequestDocumentItem `json:"items"`
 	ConstructionSite      *Ref                           `json:"construction_site"`
 	ConstructionManager   *Ref                           `json:"construction_manager"`
+	Status                *Ref                           `json:"status"`
 }
 
 type MaterialRequestDocumentItem struct {
