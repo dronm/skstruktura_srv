@@ -22,7 +22,7 @@ func TestMaterialStatusGenericServiceGuardAllowsOnlyAdmin(t *testing.T) {
 		{name: "admin", roleID: models.RoleIDAdmin},
 		{name: "construction site manager", roleID: models.RoleIDConstructionSiteManager, wantStatus: 403},
 		{name: "accountant", roleID: models.RoleIDAccountant, wantStatus: 403},
-		{name: "supplier", roleID: models.RoleIDSupplier, wantStatus: 403},
+		{name: "supply manager", roleID: models.RoleIDSupplyManager, wantStatus: 403},
 	}
 
 	for _, test := range tests {

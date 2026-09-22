@@ -24,7 +24,7 @@ type MaterialRequestItem struct {
 	MeasureUnitID int `json:"measure_unit_id" required:"true"`
 	// Requested quantity.
 	Quant float64 `json:"quant" required:"true"`
-	// Optional supplier assigned by a supply user.
+	// Optional supplier assigned by a supply manager.
 	SupplierID *int `json:"supplier_id"`
 	// Optional date by which the material is required.
 	RequiredDate *time.Time `json:"required_date"`

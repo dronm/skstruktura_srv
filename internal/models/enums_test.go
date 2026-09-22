@@ -48,7 +48,7 @@ func TestModelbindValidatesNamedStringEnums(t *testing.T) {
 			}
 		}
 
-		for _, roleID := range []string{"constr_manager", "invalid"} {
+		for _, roleID := range []string{"constr_manager", "supplier", "invalid"} {
 			invalidInput, err := decodeUserInput(`{"role_id":"` + roleID + `"}`)
 			if err != nil {
 				t.Fatalf("decode invalid role %q: %v", roleID, err)
@@ -84,7 +84,7 @@ func TestEnumValuesAreValid(t *testing.T) {
 		RoleIDAdmin,
 		RoleIDConstructionSiteManager,
 		RoleIDAccountant,
-		RoleIDSupplier,
+		RoleIDSupplyManager,
 	} {
 		if !value.IsValid() {
 			t.Fatalf("role %q must be valid", value)

@@ -83,7 +83,7 @@ fields:
       column: id
       onDelete: RESTRICT
       onUpdate: CASCADE
-    comment: Optional supplier assigned by a supply user.
+    comment: Optional supplier assigned by a supply manager.
 
   - name: required_date
     type: date

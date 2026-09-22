@@ -6,7 +6,7 @@ const (
 	RoleIDAdmin                   RoleID = "admin"
 	RoleIDConstructionSiteManager RoleID = "construction_site_manager"
 	RoleIDAccountant              RoleID = "accountant"
-	RoleIDSupplier                RoleID = "supplier"
+	RoleIDSupplyManager           RoleID = "supply_manager"
 )
 
 func RoleIDValues() []string {
@@ -14,7 +14,7 @@ func RoleIDValues() []string {
 		string(RoleIDAdmin),
 		string(RoleIDConstructionSiteManager),
 		string(RoleIDAccountant),
-		string(RoleIDSupplier),
+		string(RoleIDSupplyManager),
 	}
 }
 
@@ -23,7 +23,7 @@ func (v RoleID) IsValid() bool {
 	case RoleIDAdmin,
 		RoleIDConstructionSiteManager,
 		RoleIDAccountant,
-		RoleIDSupplier:
+		RoleIDSupplyManager:
 		return true
 	default:
 		return false

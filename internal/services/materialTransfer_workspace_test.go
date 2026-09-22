@@ -135,7 +135,7 @@ func TestAuthorizeConstructionManagerMaterialTransferRole(t *testing.T) {
 
 	for _, roleID := range []models.RoleID{
 		models.RoleIDAccountant,
-		models.RoleIDSupplier,
+		models.RoleIDSupplyManager,
 		models.RoleID("unknown"),
 	} {
 		err := authorizeConstructionManagerMaterialTransferRole(
