@@ -225,6 +225,13 @@ func TestSupplyManagerWorkspaceRoutes(t *testing.T) {
 			serviceFunc: "SupplyManagerMaterialRequests",
 			hasBinder:   true,
 		},
+		"supplyManager.materialRequest.detail": {
+			method:      http.MethodGet,
+			pattern:     "/api/supply-manager/material-requests/{id}",
+			permission:  supplyManagerAssignmentCreatePermission,
+			serviceFunc: "SupplyManagerMaterialRequestDetail",
+			hasBinder:   true,
+		},
 		"supplyManager.materialRequestSupplierAssignment.create": {
 			method:      http.MethodPost,
 			pattern:     "/api/supply-manager/material-request-supplier-assignments",

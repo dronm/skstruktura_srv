@@ -84,18 +84,27 @@ func TestConstructionManagerMaterialConsumptionRoutes(t *testing.T) {
 
 	want := map[string]struct {
 		method      string
+		pattern     string
 		permission  string
 		serviceFunc string
 	}{
 		"constructionManager.materialConsumption.create": {
 			method:      http.MethodPost,
+			pattern:     "/api/construction-manager/material-consumptions",
 			permission:  "constructionManager.materialConsumption.create",
 			serviceFunc: "ConstructionManagerCreate",
 		},
 		"constructionManager.materialConsumption.list": {
 			method:      http.MethodGet,
+			pattern:     "/api/construction-manager/material-consumptions",
 			permission:  "constructionManager.materialConsumption.list",
 			serviceFunc: "ConstructionManagerList",
+		},
+		"constructionManager.materialConsumption.detail": {
+			method:      http.MethodGet,
+			pattern:     "/api/construction-manager/material-consumptions/{id}",
+			permission:  "constructionManager.materialConsumption.list",
+			serviceFunc: "ConstructionManagerDetail",
 		},
 	}
 	found := make(map[string]int, len(want))
@@ -106,7 +115,7 @@ func TestConstructionManagerMaterialConsumptionRoutes(t *testing.T) {
 		}
 		found[route.Name]++
 		if route.Method != expected.method ||
-			route.Pattern != "/api/construction-manager/material-consumptions" ||
+			route.Pattern != expected.pattern ||
 			route.Permission != expected.permission ||
 			route.ServiceName != "MaterialConsumption" ||
 			route.ServiceFunc != expected.serviceFunc ||

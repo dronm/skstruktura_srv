@@ -105,6 +105,13 @@ func TestConstructionManagerMaterialTransferRoutes(t *testing.T) {
 			serviceFunc: "ConstructionManagerList",
 			binder:      true,
 		},
+		"constructionManager.materialTransfer.detail": {
+			method:      http.MethodGet,
+			pattern:     "/api/construction-manager/material-transfers/{id}",
+			permission:  "constructionManager.materialTransfer.list",
+			serviceFunc: "ConstructionManagerDetail",
+			binder:      true,
+		},
 		"constructionManager.materialTransfer.destinations": {
 			method:      http.MethodGet,
 			pattern:     "/api/construction-manager/transfer-destinations",

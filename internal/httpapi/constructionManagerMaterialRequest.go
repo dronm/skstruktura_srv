@@ -16,6 +16,14 @@ func constructionManagerMaterialRequestRoutes(api *webapp.Group) {
 		webapp.WithService("MaterialRequest", "ConstructionManagerList"),
 		webapp.WithBinder(constructionManagerMaterialRequestBinder()),
 	)
+
+	api.GET(
+		"/construction-manager/material-requests/{id}",
+		webapp.WithName("constructionManager.materialRequest.detail"),
+		webapp.WithPermission("materialRequest.detail"),
+		webapp.WithService("MaterialRequest", "ConstructionManagerDetail"),
+		webapp.WithBinder(webapp.PathValueBinder[int]("id")),
+	)
 }
 
 func constructionManagerMaterialRequestBinder() webapp.Binder {

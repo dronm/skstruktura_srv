@@ -47,23 +47,41 @@ func TestConstructionManagerMaterialRequestBinderRequiresSite(t *testing.T) {
 	}
 }
 
-func TestConstructionManagerMaterialRequestRoute(t *testing.T) {
+func TestConstructionManagerMaterialRequestRoutes(t *testing.T) {
 	t.Parallel()
 
-	found := 0
+	want := map[string]struct {
+		pattern     string
+		permission  string
+		serviceFunc string
+	}{
+		"constructionManager.materialRequests": {
+			pattern:     "/api/construction-manager/material-requests",
+			permission:  "materialRequest.list",
+			serviceFunc: "ConstructionManagerList",
+		},
+		"constructionManager.materialRequest.detail": {
+			pattern:     "/api/construction-manager/material-requests/{id}",
+			permission:  "materialRequest.detail",
+			serviceFunc: "ConstructionManagerDetail",
+		},
+	}
+	found := make(map[string]int, len(want))
 	for _, route := range BuildRoutes() {
-		if route.Name != "constructionManager.materialRequests" {
+		expected, ok := want[route.Name]
+		if !ok {
 			continue
 		}
-		found++
+		found[route.Name]++
 		if route.Method != http.MethodGet ||
-			route.Pattern != "/api/construction-manager/material-requests" ||
-			route.Permission != "materialRequest.list" ||
+			route.Pattern != expected.pattern ||
+			route.Permission != expected.permission ||
 			route.ServiceName != "MaterialRequest" ||
-			route.ServiceFunc != "ConstructionManagerList" ||
+			route.ServiceFunc != expected.serviceFunc ||
 			route.Binder == nil {
 			t.Errorf(
-				"route = %s %s permission %q -> %s.%s binder=%t",
+				"route %s = %s %s permission %q -> %s.%s binder=%t",
+				route.Name,
 				route.Method,
 				route.Pattern,
 				route.Permission,
@@ -73,7 +91,9 @@ func TestConstructionManagerMaterialRequestRoute(t *testing.T) {
 			)
 		}
 	}
-	if found != 1 {
-		t.Fatalf("constructionManager.materialRequests route count = %d, want 1", found)
+	for name := range want {
+		if found[name] != 1 {
+			t.Errorf("route %s count = %d, want 1", name, found[name])
+		}
 	}
 }

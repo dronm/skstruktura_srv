@@ -26,6 +26,37 @@ const (
 	supplyManagerAssignmentMaxPageSize          = 100
 )
 
+const supplyManagerIncomingMaterialRequestPredicate = `
+	site.is_active
+	AND request_status.code = $8
+	AND EXISTS (
+		SELECT 1
+		FROM public.material_request_items AS request_item
+		WHERE request_item.material_request_id = request.id
+	)
+	AND NOT EXISTS (
+		SELECT 1
+		FROM public.material_request_items AS request_item
+		JOIN public.material_request_statuses AS item_status
+			ON item_status.id = request_item.status_id
+		WHERE request_item.material_request_id = request.id
+			AND (
+				item_status.code <> $8
+				OR EXISTS (
+					SELECT 1
+					FROM public.material_request_supplier_assignment_items AS assignment_item
+					WHERE assignment_item.material_request_item_id = request_item.id
+				)
+			)
+	)
+	AND ($1::boolean OR EXISTS (
+		SELECT 1
+		FROM public.user_construction_sites AS assignment
+		WHERE assignment.user_id = $2
+			AND assignment.construction_site_id = request.construction_site_id
+	))
+`
+
 func (s *MaterialRequestSupplierAssignmentService) SupplyManagerSites(
 	ctx context.Context,
 ) (models.SupplyManagerSitesResponse, error) {
@@ -150,6 +181,45 @@ func (s *MaterialRequestSupplierAssignmentService) SupplyManagerMaterialRequests
 		Rows: requests,
 		Agg:  &wmodels.TotCount{TotCount: total},
 	}, nil
+}
+
+func (s *MaterialRequestSupplierAssignmentService) SupplyManagerMaterialRequestDetail(
+	ctx context.Context,
+	id int,
+) (*models.MaterialRequestDocument, error) {
+	user, err := s.currentSupplyManagerUser()
+	if err != nil {
+		return nil, err
+	}
+	if err := authorizeSupplyManagerRole(user, supplyManagerAssignmentCreatePermission); err != nil {
+		return nil, err
+	}
+	if id <= 0 {
+		return nil, webapp.BadRequest("material request id should be positive", nil)
+	}
+	if err := s.requireDB(); err != nil {
+		return nil, err
+	}
+
+	poolConn, connID, err := s.DB.GetPrimary(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("get primary connection for supply manager material request detail: %w", err)
+	}
+	defer s.DB.Release(poolConn, connID)
+
+	db := poolConn.Conn()
+	if err := requireSupplyManagerIncomingMaterialRequestAccess(ctx, db, user, id); err != nil {
+		return nil, err
+	}
+
+	document, err := fetchMaterialRequestDocument(ctx, db, id)
+	if err != nil {
+		if errors.Is(err, ds.ErrNoRows) {
+			return nil, materialRequestDocumentNotFound(id)
+		}
+		return nil, fmt.Errorf("fetch supply manager material request detail: %w", err)
+	}
+	return document, nil
 }
 
 func (s *MaterialRequestSupplierAssignmentService) SupplyManagerHistory(
@@ -417,6 +487,36 @@ func supplyManagerSiteForbidden(constructionSiteID int) error {
 	)
 }
 
+func requireSupplyManagerIncomingMaterialRequestAccess(
+	ctx context.Context,
+	db ds.Querier,
+	user models.UserLogin,
+	id int,
+) error {
+	query := &models.SupplyManagerMaterialRequestQuery{}
+	args := append(supplyManagerMaterialRequestQueryArgs(user, query), id)
+
+	var available bool
+	if err := db.QueryRow(ctx, `
+		SELECT EXISTS (
+			SELECT 1
+			FROM public.material_requests AS request
+			JOIN public.construction_sites AS site
+				ON site.id = request.construction_site_id
+			JOIN public.material_request_statuses AS request_status
+				ON request_status.id = request.status_id
+			WHERE request.id = $9
+				AND `+supplyManagerIncomingMaterialRequestPredicate+`
+		)
+	`, args...).Scan(&available); err != nil {
+		return fmt.Errorf("check supply manager incoming material request access: %w", err)
+	}
+	if !available {
+		return materialRequestDocumentNotFound(id)
+	}
+	return nil
+}
+
 func fetchSupplyManagerMaterialRequestIDs(
 	ctx context.Context,
 	db ds.Querier,
@@ -427,41 +527,14 @@ func fetchSupplyManagerMaterialRequestIDs(
 	args := supplyManagerMaterialRequestQueryArgs(user, query)
 
 	var total int
-	if err := db.QueryRow(ctx, `
+	countSQL := `
 		SELECT COUNT(*)::integer
 		FROM public.material_requests AS request
 		JOIN public.construction_sites AS site
 			ON site.id = request.construction_site_id
 		JOIN public.material_request_statuses AS request_status
 			ON request_status.id = request.status_id
-		WHERE site.is_active
-			AND request_status.code = $8
-			AND EXISTS (
-				SELECT 1
-				FROM public.material_request_items AS request_item
-				WHERE request_item.material_request_id = request.id
-			)
-			AND NOT EXISTS (
-				SELECT 1
-				FROM public.material_request_items AS request_item
-				JOIN public.material_request_statuses AS item_status
-					ON item_status.id = request_item.status_id
-				WHERE request_item.material_request_id = request.id
-					AND (
-						item_status.code <> $8
-						OR EXISTS (
-							SELECT 1
-							FROM public.material_request_supplier_assignment_items AS assignment_item
-							WHERE assignment_item.material_request_item_id = request_item.id
-						)
-					)
-			)
-			AND ($1::boolean OR EXISTS (
-				SELECT 1
-				FROM public.user_construction_sites AS assignment
-				WHERE assignment.user_id = $2
-					AND assignment.construction_site_id = request.construction_site_id
-			))
+		WHERE ` + supplyManagerIncomingMaterialRequestPredicate + `
 			AND ($3::integer IS NULL OR request.construction_site_id = $3)
 			AND ($4::timestamptz IS NULL OR request.date >= $4)
 			AND ($5::timestamptz IS NULL OR request.date <= $5)
@@ -477,45 +550,19 @@ func fetchSupplyManagerMaterialRequestIDs(
 						AND ($7::integer IS NULL OR filter_item.order_importance_id = $7)
 				)
 			)
-	`, args...).Scan(&total); err != nil {
+	`
+	if err := db.QueryRow(ctx, countSQL, args...).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("count supply manager material requests: %w", err)
 	}
 
-	rows, err := db.Query(ctx, `
+	selectSQL := `
 		SELECT request.id
 		FROM public.material_requests AS request
 		JOIN public.construction_sites AS site
 			ON site.id = request.construction_site_id
 		JOIN public.material_request_statuses AS request_status
 			ON request_status.id = request.status_id
-		WHERE site.is_active
-			AND request_status.code = $8
-			AND EXISTS (
-				SELECT 1
-				FROM public.material_request_items AS request_item
-				WHERE request_item.material_request_id = request.id
-			)
-			AND NOT EXISTS (
-				SELECT 1
-				FROM public.material_request_items AS request_item
-				JOIN public.material_request_statuses AS item_status
-					ON item_status.id = request_item.status_id
-				WHERE request_item.material_request_id = request.id
-					AND (
-						item_status.code <> $8
-						OR EXISTS (
-							SELECT 1
-							FROM public.material_request_supplier_assignment_items AS assignment_item
-							WHERE assignment_item.material_request_item_id = request_item.id
-						)
-					)
-			)
-			AND ($1::boolean OR EXISTS (
-				SELECT 1
-				FROM public.user_construction_sites AS assignment
-				WHERE assignment.user_id = $2
-					AND assignment.construction_site_id = request.construction_site_id
-			))
+		WHERE ` + supplyManagerIncomingMaterialRequestPredicate + `
 			AND ($3::integer IS NULL OR request.construction_site_id = $3)
 			AND ($4::timestamptz IS NULL OR request.date >= $4)
 			AND ($5::timestamptz IS NULL OR request.date <= $5)
@@ -533,7 +580,8 @@ func fetchSupplyManagerMaterialRequestIDs(
 			)
 		ORDER BY request.date, request.id
 		LIMIT $9 OFFSET $10
-	`, append(args, int(params.Count), int(params.From))...)
+	`
+	rows, err := db.Query(ctx, selectSQL, append(args, int(params.Count), int(params.From))...)
 	if err != nil {
 		return nil, 0, fmt.Errorf("select supply manager material request ids: %w", err)
 	}

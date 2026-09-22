@@ -170,6 +170,91 @@ func (s *MaterialConsumptionService) ConstructionManagerList(
 	return result, nil
 }
 
+func (s *MaterialConsumptionService) ConstructionManagerDetail(
+	ctx context.Context,
+	id int,
+) (*models.MaterialConsumptionDocument, error) {
+	user, err := s.constructionManagerMaterialConsumptionUser()
+	if err != nil {
+		return nil, err
+	}
+	if err := authorizeConstructionManagerMaterialConsumptionRole(
+		user,
+		constructionManagerMaterialConsumptionListPermission,
+	); err != nil {
+		return nil, err
+	}
+	if id <= 0 {
+		return nil, webapp.BadRequest("material consumption id should be positive", nil)
+	}
+	if err := s.requireDB(); err != nil {
+		return nil, err
+	}
+
+	poolConn, connID, err := s.DB.GetPrimary(ctx)
+	if err != nil {
+		return nil, fmt.Errorf(
+			"get primary connection for construction manager material consumption detail: %w",
+			err,
+		)
+	}
+	defer s.DB.Release(poolConn, connID)
+
+	db := poolConn.Conn()
+	if err := requireConstructionManagerMaterialConsumptionAccess(ctx, db, user, id); err != nil {
+		return nil, err
+	}
+
+	document, err := fetchMaterialConsumptionDocument(ctx, db, id)
+	if err != nil {
+		if errors.Is(err, ds.ErrNoRows) {
+			return nil, materialConsumptionDocumentNotFound(id)
+		}
+		return nil, fmt.Errorf("fetch construction manager material consumption detail: %w", err)
+	}
+	return document, nil
+}
+
+func requireConstructionManagerMaterialConsumptionAccess(
+	ctx context.Context,
+	db ds.Querier,
+	user models.UserLogin,
+	id int,
+) error {
+	var available bool
+	if err := db.QueryRow(ctx, `
+		SELECT EXISTS (
+			SELECT 1
+			FROM public.material_consumptions AS consumption
+			JOIN public.construction_sites AS site
+				ON site.id = consumption.construction_site_id
+			WHERE consumption.id = $1
+				AND (
+					$2::boolean
+					OR (
+						site.is_active
+						AND EXISTS (
+							SELECT 1
+							FROM public.user_construction_sites AS assignment
+							WHERE assignment.user_id = $3
+								AND assignment.construction_site_id = site.id
+						)
+					)
+				)
+		)
+	`, id, user.RoleID == models.RoleIDAdmin, user.ID).Scan(&available); err != nil {
+		return fmt.Errorf("check construction manager material consumption access: %w", err)
+	}
+	if !available {
+		return materialConsumptionDocumentNotFound(id)
+	}
+	return nil
+}
+
+func materialConsumptionDocumentNotFound(id int) error {
+	return webapp.NotFound("material consumption not found", map[string]any{"id": id})
+}
+
 func (s *MaterialConsumptionService) constructionManagerMaterialConsumptionUser() (models.UserLogin, error) {
 	if s.Session == nil {
 		return models.UserLogin{}, apperrors.SessionRequired()

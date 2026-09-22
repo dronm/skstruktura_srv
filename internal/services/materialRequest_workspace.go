@@ -2,8 +2,10 @@ package services
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
+	"github.com/dronm/ds/v4"
 	"github.com/dronm/modelbind"
 	"github.com/dronm/skstruktura/internal/apperrors"
 	"github.com/dronm/skstruktura/internal/models"
@@ -130,6 +132,88 @@ func (s *MaterialRequestService) ConstructionManagerList(
 	}
 
 	return result, nil
+}
+
+func (s *MaterialRequestService) ConstructionManagerDetail(
+	ctx context.Context,
+	id int,
+) (*models.MaterialRequestDocument, error) {
+	user, err := s.constructionManagerMaterialRequestUser()
+	if err != nil {
+		return nil, err
+	}
+	if err := authorizeConstructionManagerMaterialRequestRole(user); err != nil {
+		return nil, err
+	}
+	if id <= 0 {
+		return nil, webapp.BadRequest("material request id should be positive", nil)
+	}
+	if err := s.requireDB(); err != nil {
+		return nil, err
+	}
+
+	poolConn, connID, err := s.DB.GetPrimary(ctx)
+	if err != nil {
+		return nil, fmt.Errorf(
+			"get primary connection for construction manager material request detail: %w",
+			err,
+		)
+	}
+	defer s.DB.Release(poolConn, connID)
+
+	db := poolConn.Conn()
+	if err := requireAssignedSiteMaterialRequestAccess(ctx, db, user, id); err != nil {
+		return nil, err
+	}
+
+	document, err := fetchMaterialRequestDocument(ctx, db, id)
+	if err != nil {
+		if errors.Is(err, ds.ErrNoRows) {
+			return nil, materialRequestDocumentNotFound(id)
+		}
+		return nil, fmt.Errorf("fetch construction manager material request detail: %w", err)
+	}
+	return document, nil
+}
+
+func requireAssignedSiteMaterialRequestAccess(
+	ctx context.Context,
+	db ds.Querier,
+	user models.UserLogin,
+	id int,
+) error {
+	var available bool
+	if err := db.QueryRow(ctx, `
+		SELECT EXISTS (
+			SELECT 1
+			FROM public.material_requests AS request
+			JOIN public.construction_sites AS site
+				ON site.id = request.construction_site_id
+			WHERE request.id = $1
+				AND (
+					$2::boolean
+					OR (
+						site.is_active
+						AND EXISTS (
+							SELECT 1
+							FROM public.user_construction_sites AS assignment
+							WHERE assignment.user_id = $3
+								AND assignment.construction_site_id = site.id
+						)
+					)
+				)
+		)
+	`, id, user.RoleID == models.RoleIDAdmin, user.ID).Scan(&available); err != nil {
+		return fmt.Errorf("check assigned-site material request access: %w", err)
+	}
+	if !available {
+		return materialRequestDocumentNotFound(id)
+	}
+	return nil
+}
+
+func materialRequestDocumentNotFound(id int) error {
+	return webapp.NotFound("material request not found", map[string]any{"id": id})
 }
 
 func (s *MaterialRequestService) constructionManagerMaterialRequestUser() (models.UserLogin, error) {

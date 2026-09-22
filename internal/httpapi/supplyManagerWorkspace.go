@@ -32,6 +32,14 @@ func supplyManagerWorkspaceRoutes(api *webapp.Group) {
 		webapp.WithBinder(supplyManagerMaterialRequestBinder()),
 	)
 
+	api.GET(
+		"/supply-manager/material-requests/{id}",
+		webapp.WithName("supplyManager.materialRequest.detail"),
+		webapp.WithPermission(supplyManagerAssignmentCreatePermission),
+		webapp.WithService("MaterialRequestSupplierAssignment", "SupplyManagerMaterialRequestDetail"),
+		webapp.WithBinder(webapp.PathValueBinder[int]("id")),
+	)
+
 	api.POST(
 		"/supply-manager/material-request-supplier-assignments",
 		webapp.WithName("supplyManager.materialRequestSupplierAssignment.create"),

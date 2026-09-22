@@ -188,6 +188,92 @@ func (s *MaterialTransferService) ConstructionManagerList(
 	return result, nil
 }
 
+func (s *MaterialTransferService) ConstructionManagerDetail(
+	ctx context.Context,
+	id int,
+) (*models.MaterialTransferDocument, error) {
+	user, err := s.constructionManagerMaterialTransferUser()
+	if err != nil {
+		return nil, err
+	}
+	if err := authorizeConstructionManagerMaterialTransferRole(
+		user,
+		constructionManagerMaterialTransferListPermission,
+	); err != nil {
+		return nil, err
+	}
+	if id <= 0 {
+		return nil, webapp.BadRequest("material transfer id should be positive", nil)
+	}
+	if err := s.requireDB(); err != nil {
+		return nil, err
+	}
+
+	poolConn, connID, err := s.DB.GetPrimary(ctx)
+	if err != nil {
+		return nil, fmt.Errorf(
+			"get primary connection for construction manager material transfer detail: %w",
+			err,
+		)
+	}
+	defer s.DB.Release(poolConn, connID)
+
+	db := poolConn.Conn()
+	if err := requireConstructionManagerMaterialTransferAccess(ctx, db, user, id); err != nil {
+		return nil, err
+	}
+
+	document, err := fetchMaterialTransferDocument(ctx, db, id)
+	if err != nil {
+		if errors.Is(err, ds.ErrNoRows) {
+			return nil, materialTransferDocumentNotFound(id)
+		}
+		return nil, fmt.Errorf("fetch construction manager material transfer detail: %w", err)
+	}
+	return document, nil
+}
+
+func requireConstructionManagerMaterialTransferAccess(
+	ctx context.Context,
+	db ds.Querier,
+	user models.UserLogin,
+	id int,
+) error {
+	var available bool
+	if err := db.QueryRow(ctx, `
+		SELECT EXISTS (
+			SELECT 1
+			FROM public.material_transfers AS transfer
+			WHERE transfer.id = $1
+				AND (
+					$2::boolean
+					OR EXISTS (
+						SELECT 1
+						FROM public.construction_sites AS site
+						JOIN public.user_construction_sites AS assignment
+							ON assignment.construction_site_id = site.id
+							AND assignment.user_id = $3
+						WHERE site.is_active
+							AND site.id IN (
+								transfer.source_construction_site_id,
+								transfer.destination_construction_site_id
+							)
+					)
+				)
+		)
+	`, id, user.RoleID == models.RoleIDAdmin, user.ID).Scan(&available); err != nil {
+		return fmt.Errorf("check construction manager material transfer access: %w", err)
+	}
+	if !available {
+		return materialTransferDocumentNotFound(id)
+	}
+	return nil
+}
+
+func materialTransferDocumentNotFound(id int) error {
+	return webapp.NotFound("material transfer not found", map[string]any{"id": id})
+}
+
 func (s *MaterialTransferService) ConstructionManagerDestinations(
 	ctx context.Context,
 ) (models.MaterialBalanceConstructionSitesResponse, error) {

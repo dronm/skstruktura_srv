@@ -27,6 +27,14 @@ func constructionManagerMaterialTransferRoutes(api *webapp.Group) {
 	)
 
 	api.GET(
+		"/construction-manager/material-transfers/{id}",
+		webapp.WithName("constructionManager.materialTransfer.detail"),
+		webapp.WithPermission("constructionManager.materialTransfer.list"),
+		webapp.WithService("MaterialTransfer", "ConstructionManagerDetail"),
+		webapp.WithBinder(webapp.PathValueBinder[int]("id")),
+	)
+
+	api.GET(
 		"/construction-manager/transfer-destinations",
 		webapp.WithName("constructionManager.materialTransfer.destinations"),
 		webapp.WithPermission("constructionManager.materialTransfer.create"),

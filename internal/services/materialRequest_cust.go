@@ -162,30 +162,7 @@ func (s *MaterialRequestService) DocumentDetail(
 	ctx context.Context,
 	id int,
 ) (*models.MaterialRequestDocument, error) {
-	if err := s.requireSession(); err != nil {
-		return nil, err
-	}
-	if err := s.requireDB(); err != nil {
-		return nil, err
-	}
-	if id <= 0 {
-		return nil, webapp.BadRequest("material request id is required", nil)
-	}
-
-	poolConn, connID, err := s.DB.GetPrimary(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("get primary connection for material request detail: %w", err)
-	}
-	defer s.DB.Release(poolConn, connID)
-
-	result, err := fetchMaterialRequestDocument(ctx, poolConn.Conn(), id)
-	if err != nil {
-		if errors.Is(err, ds.ErrNoRows) {
-			return nil, webapp.NotFound("material request not found", map[string]any{"id": id})
-		}
-		return nil, fmt.Errorf("fetch complete material request: %w", err)
-	}
-	return result, nil
+	return s.ConstructionManagerDetail(ctx, id)
 }
 
 func (s *MaterialRequestService) Submit(
