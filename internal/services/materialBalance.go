@@ -105,7 +105,10 @@ func (s *MaterialBalanceService) List(
 			material,
 			measure_unit_id,
 			measure_unit,
-			balance::double precision
+			balance::double precision,
+			amount::double precision,
+			average_cost::double precision,
+			amount_pending
 		FROM public.material_balances_list
 		WHERE construction_site_id = $1
 		ORDER BY
@@ -134,6 +137,9 @@ func (s *MaterialBalanceService) List(
 			&row.MeasureUnitID,
 			&row.MeasureUnit,
 			&row.Balance,
+			&row.Amount,
+			&row.AverageCost,
+			&row.AmountPending,
 		); err != nil {
 			return models.MaterialBalanceResponse{}, fmt.Errorf("scan material balance: %w", err)
 		}
@@ -290,7 +296,13 @@ func (s *MaterialBalanceService) Materials(
 			public.materials_ref(material),
 			material.measure_unit_id,
 			public.measure_units_ref(measure_unit),
-			COALESCE(balance.quant, 0)::double precision
+			COALESCE(balance.quant, 0)::double precision,
+			balance.amount::double precision,
+			CASE
+				WHEN balance.amount IS NULL OR balance.quant = 0 THEN NULL
+				ELSE (balance.amount / balance.quant)::double precision
+			END,
+			COALESCE(balance.pending_count > 0, false)
 		FROM public.materials AS material
 		JOIN public.material_types AS material_type
 			ON material_type.id = material.material_type_id
@@ -331,6 +343,9 @@ func (s *MaterialBalanceService) Materials(
 			&row.MeasureUnitID,
 			&row.MeasureUnit,
 			&row.Balance,
+			&row.Amount,
+			&row.AverageCost,
+			&row.AmountPending,
 		); err != nil {
 			return models.MaterialBalanceResponse{}, fmt.Errorf(
 				"scan construction manager material: %w",

@@ -212,6 +212,9 @@ func (s *MaterialTransferService) Delete(
 		if err := removeMaterialRegisterActions(ctx, tx, materialTransferRecorderType, id); err != nil {
 			return err
 		}
+		if err := revalueMaterialRegister(ctx, tx); err != nil {
+			return err
+		}
 
 		result, err := tx.Exec(ctx, "DELETE FROM public.material_transfers WHERE id = $1", id)
 		if err != nil {

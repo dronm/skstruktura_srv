@@ -117,8 +117,8 @@ func TestRebuildMaterialRegisterActions(t *testing.T) {
 				t.Fatalf("rebuildMaterialRegisterActions() error = %v", err)
 			}
 
-			if len(querier.execCalls) != 2 {
-				t.Fatalf("Exec call count = %d, want 2", len(querier.execCalls))
+			if len(querier.execCalls) != 3 {
+				t.Fatalf("Exec call count = %d, want 3", len(querier.execCalls))
 			}
 			if !strings.Contains(
 				querier.execCalls[0].query,
@@ -145,6 +145,14 @@ func TestRebuildMaterialRegisterActions(t *testing.T) {
 				writeCall.args[0] != test.recorderType ||
 				writeCall.args[1] != 17 {
 				t.Fatalf("write args = %#v", writeCall.args)
+			}
+
+			revalueCall := querier.execCalls[2]
+			if !strings.Contains(revalueCall.query, "public.materials_revalue()") {
+				t.Fatalf("third query does not revalue register: %s", revalueCall.query)
+			}
+			if len(revalueCall.args) != 0 {
+				t.Fatalf("revalue args = %#v, want none", revalueCall.args)
 			}
 		})
 	}
@@ -194,5 +202,47 @@ func TestRebuildMaterialRegisterActionsStopsAfterRemoveFailure(t *testing.T) {
 	}
 	if len(querier.execCalls) != 1 {
 		t.Fatalf("Exec call count = %d, want 1", len(querier.execCalls))
+	}
+}
+
+func TestRebuildMaterialRegisterActionsStopsAfterWriteFailure(t *testing.T) {
+	t.Parallel()
+
+	querier := &materialRegisterFakeQuerier{execErrAt: 2}
+	err := rebuildMaterialRegisterActions(
+		context.Background(),
+		querier,
+		materialReceiptRecorderType,
+		17,
+	)
+	if err == nil {
+		t.Fatal("rebuildMaterialRegisterActions() error = nil, want error")
+	}
+	if len(querier.execCalls) != 2 {
+		t.Fatalf("Exec call count = %d, want 2", len(querier.execCalls))
+	}
+	if strings.Contains(querier.execCalls[len(querier.execCalls)-1].query, "public.materials_revalue()") {
+		t.Fatal("revaluation ran after register write failed")
+	}
+}
+
+func TestRebuildMaterialRegisterActionsReturnsRevalueFailure(t *testing.T) {
+	t.Parallel()
+
+	querier := &materialRegisterFakeQuerier{execErrAt: 3}
+	err := rebuildMaterialRegisterActions(
+		context.Background(),
+		querier,
+		materialReceiptRecorderType,
+		17,
+	)
+	if err == nil {
+		t.Fatal("rebuildMaterialRegisterActions() error = nil, want error")
+	}
+	if !strings.Contains(err.Error(), "revalue material register") {
+		t.Fatalf("error = %q, want revaluation context", err)
+	}
+	if len(querier.execCalls) != 3 {
+		t.Fatalf("Exec call count = %d, want 3", len(querier.execCalls))
 	}
 }

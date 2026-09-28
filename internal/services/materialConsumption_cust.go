@@ -208,6 +208,9 @@ func (s *MaterialConsumptionService) Delete(
 		if err := removeMaterialRegisterActions(ctx, tx, materialConsumptionRecorderType, id); err != nil {
 			return err
 		}
+		if err := revalueMaterialRegister(ctx, tx); err != nil {
+			return err
+		}
 
 		result, err := tx.Exec(ctx, "DELETE FROM public.material_consumptions WHERE id = $1", id)
 		if err != nil {

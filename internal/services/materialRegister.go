@@ -98,6 +98,24 @@ func rebuildMaterialRegisterActions(
 	recorderType string,
 	recorderID int,
 ) error {
+	if err := rewriteMaterialRegisterActions(ctx, tx, recorderType, recorderID); err != nil {
+		return err
+	}
+
+	return revalueMaterialRegister(ctx, tx)
+}
+
+// rewriteMaterialRegisterActions replaces one recorder's raw quantity/source
+// movements without running monetary valuation. Most document operations should
+// call rebuildMaterialRegisterActions instead. Bulk register rebuilds use this
+// helper for every recorder and run materials_revalue() once after all raw
+// movements have been replaced.
+func rewriteMaterialRegisterActions(
+	ctx context.Context,
+	tx ds.Querier,
+	recorderType string,
+	recorderID int,
+) error {
 	if err := removeMaterialRegisterActions(ctx, tx, recorderType, recorderID); err != nil {
 		return err
 	}
@@ -110,14 +128,22 @@ func rebuildMaterialRegisterActions(
 				receipt.date,
 				$1,
 				receipt.id,
+				item.id,
+				1::smallint,
 				COALESCE(item.construction_site_id, receipt.construction_site_id),
 				item.material_id,
-				item.quant
+				item.quant,
+				CASE
+					WHEN settings.materials_exclude_vat_from_cost THEN item.amount - item.vat_amount
+					ELSE item.amount
+				END
 			)
 			FROM public.material_receipts AS receipt
 			JOIN public.material_receipt_items AS item
 				ON item.material_receipt_id = receipt.id
+			CROSS JOIN public.register_settings AS settings
 			WHERE receipt.id = $2
+				AND settings.id = 1
 			ORDER BY item.line_num, item.id
 		`
 	case materialConsumptionRecorderType:
@@ -126,9 +152,12 @@ func rebuildMaterialRegisterActions(
 				consumption.date,
 				$1,
 				consumption.id,
+				item.id,
+				1::smallint,
 				consumption.construction_site_id,
 				item.material_id,
-				-item.quant
+				-item.quant,
+				NULL
 			)
 			FROM public.material_consumptions AS consumption
 			JOIN public.material_consumption_items AS item
@@ -142,9 +171,12 @@ func rebuildMaterialRegisterActions(
 				transfer.date,
 				$1,
 				transfer.id,
+				movement.id,
+				movement.movement_order::smallint,
 				movement.construction_site_id,
 				movement.material_id,
-				movement.quant
+				movement.quant,
+				NULL
 			)
 			FROM public.material_transfers AS transfer
 			JOIN LATERAL (
@@ -184,6 +216,14 @@ func rebuildMaterialRegisterActions(
 			recorderID,
 			err,
 		)
+	}
+
+	return nil
+}
+
+func revalueMaterialRegister(ctx context.Context, tx ds.Querier) error {
+	if _, err := tx.Exec(ctx, "SELECT public.materials_revalue()"); err != nil {
+		return fmt.Errorf("revalue material register: %w", err)
 	}
 
 	return nil

@@ -16,16 +16,19 @@ type MaterialBalanceInput struct {
 }
 
 type MaterialBalanceRow struct {
-	ID                 int     `json:"id"`
-	ConstructionSiteID int     `json:"construction_site_id"`
-	ConstructionSite   *Ref    `json:"construction_site"`
-	MaterialTypeID     int     `json:"material_type_id"`
-	MaterialType       *Ref    `json:"material_type"`
-	MaterialID         int     `json:"material_id"`
-	Material           *Ref    `json:"material"`
-	MeasureUnitID      int     `json:"measure_unit_id"`
-	MeasureUnit        *Ref    `json:"measure_unit"`
-	Balance            float64 `json:"balance"`
+	ID                 int      `json:"id"`
+	ConstructionSiteID int      `json:"construction_site_id"`
+	ConstructionSite   *Ref     `json:"construction_site"`
+	MaterialTypeID     int      `json:"material_type_id"`
+	MaterialType       *Ref     `json:"material_type"`
+	MaterialID         int      `json:"material_id"`
+	Material           *Ref     `json:"material"`
+	MeasureUnitID      int      `json:"measure_unit_id"`
+	MeasureUnit        *Ref     `json:"measure_unit"`
+	Balance            float64  `json:"balance"`
+	Amount             *float64 `json:"amount"`
+	AverageCost        *float64 `json:"average_cost"`
+	AmountPending      bool     `json:"amount_pending"`
 }
 
 type MaterialBalanceResponse struct {
